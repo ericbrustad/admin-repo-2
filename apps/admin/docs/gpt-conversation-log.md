@@ -361,3 +361,11 @@
 **You:** CODEx flagged that `handleUnifiedGameChange` still carried legacy fallbacks—replace it with the new slug-first flow so Close & Save reloads titles, tags, and themes instantly, then ping ChatGPT-5 about the adjustments.
 
 **GPT:** Swapped in the CODEx routine to derive slug/channel, hydrate from local snapshots, reset editors, and update the header/title/tag state (including document title), then recorded the change here so ChatGPT-5 knows the picker now mirrors the new flow.
+
+---
+
+**Timestamp:** 2025-11-03T15:30:00Z
+
+**You:** CODEx wants the saved games to live in one canonical spot—purge the legacy public/game duplicates, drop the default/draft copies, and point the loader at `/public/games/<slug>/config.json` while keeping ChatGPT-5 in the loop.
+
+**GPT:** Removed the redundant public/game trees and default backups, taught the selection handler and config API to resolve the canonical slug path, refreshed the fallback fetches to `/games/<slug>/config.json`, and logged the cleanup here so ChatGPT-5 tracks the unified content source.

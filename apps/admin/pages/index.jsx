@@ -44,6 +44,14 @@ async function fetchFirstJson(urls, fallback) {
   }
   return fallback;
 }
+
+const STARFIELD_CANONICAL_SLUG = 'starfield-station-break';
+
+function resolveContentSlug(slug) {
+  const raw = (slug || '').toString().trim();
+  if (!raw || raw === 'default') return STARFIELD_CANONICAL_SLUG;
+  return raw;
+}
 function toDirectMediaURL(u) {
   if (!u) return u;
   try {
@@ -3394,13 +3402,9 @@ export default function Admin() {
 
         if (!missionsSource || !configSource) {
           fallbackUsed = true;
-          const isDefault = !activeSlug || activeSlug === 'default';
-          const missionUrls = isDefault
-            ? ['/missions.json']
-            : [`/games/${encodeURIComponent(activeSlug)}/missions.json`, `/missions.json`];
-          const configUrls = isDefault
-            ? ['/api/config']
-            : [`/api/config${qs({ slug: activeSlug })}`, '/api/config'];
+          const canonicalSlug = resolveContentSlug(activeSlug);
+          const missionUrls = [`/games/${encodeURIComponent(canonicalSlug)}/missions.json`];
+          const configUrls = [`/games/${encodeURIComponent(canonicalSlug)}/config.json`];
           missionsSource = await fetchFirstJson(missionUrls, { version: '0.0.0', missions: [] });
           configSource = await fetchFirstJson(configUrls, defaultConfig());
         }
@@ -4914,12 +4918,16 @@ export default function Admin() {
         }
       }
 
-      if (!slug && match) slug = (match.slug || '').trim();
-      if (!slug) { setSelectionLock(false); return; }
-      if (slug === 'default') channel = 'draft'; // default is always draft
+    if (!slug && match) slug = (match.slug || '').trim();
+    if (!slug) { setSelectionLock(false); return; }
+    if (slug === 'default') channel = 'draft'; // default is always draft
 
-      // Prefer local snapshot (drafts stay local)
-      const local = readLocalSnapshotFor(slug, channel);
+    const canonicalSlug = resolveContentSlug(slug);
+    const canonicalConfigPath = `public/games/${canonicalSlug}/config.json`;
+    const canonicalMissionsPath = `public/games/${canonicalSlug}/missions.json`;
+
+    // Prefer local snapshot (drafts stay local)
+    const local = readLocalSnapshotFor(slug, channel);
       const localConfig = local?.snapshot?.data?.config && typeof local.snapshot.data.config === 'object'
         ? local.snapshot.data.config : null;
       const localSuite = local?.snapshot?.data?.suite && typeof local.snapshot.data.suite === 'object'
@@ -4936,6 +4944,8 @@ export default function Admin() {
       setPageTitle(nextTitle);
 
       // If we have a local snapshot, use it now so the UI reflects drafts instantly.
+      let mergedConfig = null;
+
       if (localConfig || localSuite) {
         const defaults = defaultConfig();
         let merged = {
@@ -4964,6 +4974,7 @@ export default function Admin() {
         merged.appearanceTone = localConfig?.appearanceTone || merged.appearanceTone || 'light';
         merged = applyDefaultIcons(merged);
         merged = normalizeGameMetadata(merged, slug);
+        mergedConfig = merged;
         setConfig(merged);
 
         if (localSuite) {
@@ -4972,17 +4983,33 @@ export default function Admin() {
         } else {
           setSuite(null);
         }
-
-        setActiveGameMeta({
-          id: match?.id ?? null,
-          slug,
-          tag: channel,
-          default_channel: match?.default_channel === 'published' ? 'published' : 'draft',
-          game_enabled: typeof match?.game_enabled === 'boolean' ? match.game_enabled : true,
-          settings: (merged?.settings && typeof merged.settings === 'object') ? merged.settings : {},
-          cover_image: merged?.game?.coverImage || match?.coverImage || match?.cover_image || null,
-        });
       }
+
+      const nextMeta = {
+        id: match?.id ?? null,
+        slug,
+        canonicalSlug,
+        tag: channel,
+        default_channel: match?.default_channel === 'published' ? 'published' : 'draft',
+        game_enabled: typeof match?.game_enabled === 'boolean' ? match.game_enabled : true,
+        configPath: canonicalConfigPath,
+        missionsPath: canonicalMissionsPath,
+        settings: {},
+        cover_image: match?.coverImage || match?.cover_image || null,
+      };
+
+      if (mergedConfig) {
+        nextMeta.settings = (mergedConfig?.settings && typeof mergedConfig.settings === 'object')
+          ? mergedConfig.settings
+          : {};
+        nextMeta.cover_image = mergedConfig?.game?.coverImage
+          || nextMeta.cover_image
+          || null;
+      } else if (match?.settings && typeof match.settings === 'object') {
+        nextMeta.settings = { ...match.settings };
+      }
+
+      setActiveGameMeta(nextMeta);
 
       // Reset misc UI & announce
       setSelected(null);
