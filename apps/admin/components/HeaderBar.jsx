@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { CloseAndSaveSettings } from './CodexDrop.GameDraftsPanel.jsx';
 import { CloseAndSaveSettings } from './GameControls.unified.jsx';
 
 /**
