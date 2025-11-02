@@ -1,0 +1,91 @@
+{
+  "splash": {
+    "enabled": true,
+    "mode": "single"
+  },
+  "game": {
+    "title": "Bloomington Dog Park",
+    "slug": "bloomington-dog-park",
+    "mode": "single",
+    "tags": [
+      "bloomington",
+      "dog-park"
+    ],
+    "coverImage": "/media/covers/bloomington-dog-park.jpg",
+    "shortDescription": "Track the missing pup by sweeping Bloomington Dog Park for clues.",
+    "longDescription": "Reunite a lost dog with their family by following collar clues, scanning park devices, and coordinating teams across Bloomington Dog Park.",
+    "deployEnabled": true
+  },
+  "forms": {
+    "players": 1
+  },
+  "timer": {
+    "durationMinutes": 30,
+    "alertMinutes": 5
+  },
+  "textRules": [
+    "Keep water bowls sealed after inspection.",
+    "Return any borrowed leashes to the equipment crate.",
+    "Secure the park gate before ending the session."
+  ],
+  "devices": [
+    {
+      "id": "device-water-bowl",
+      "title": "Water Bowl Sensor",
+      "type": "signal",
+      "iconKey": "water-drop",
+      "pickupRadius": 50,
+      "lat": 44.8326,
+      "lng": -93.3141,
+      "mediaUrl": "/media/devices/water-bowl.png"
+    },
+    {
+      "id": "device-leash-hook",
+      "title": "Leash Hook Beacon",
+      "type": "signal",
+      "iconKey": "hook",
+      "pickupRadius": 50,
+      "lat": 44.8324,
+      "lng": -93.3138,
+      "mediaUrl": "/media/devices/leash-hook.png"
+    },
+    {
+      "id": "device-gate-camera",
+      "title": "Gate Camera",
+      "type": "camera",
+      "iconKey": "camera",
+      "pickupRadius": 50,
+      "lat": 44.8327,
+      "lng": -93.3142,
+      "mediaUrl": "/media/devices/gate-camera.png"
+    }
+  ],
+  "missions": [
+    "m01"
+  ],
+  "map": {
+    "centerLat": 44.8325,
+    "centerLng": -93.314,
+    "defaultZoom": 17
+  },
+  "media": {},
+  "icons": {
+    "missions": [],
+    "devices": [],
+    "rewards": []
+  },
+  "appearance": {
+    "fontFamily": "\"Nunito\", \"Segoe UI\", sans-serif",
+    "fontSizePx": 26,
+    "fontColor": "#1f2937",
+    "textBgColor": "#f0fdf4",
+    "textBgOpacity": 0.78,
+    "screenBgColor": "#dcfce7",
+    "screenBgOpacity": 0.5,
+    "screenBgImage": "/media/skins/forest-meadow.svg",
+    "textAlign": "center",
+    "textVertical": "top",
+    "screenBgImageEnabled": true
+  },
+  "appearanceSkin": "forest-meadow"
+}
