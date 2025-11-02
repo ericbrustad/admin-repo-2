@@ -2,6 +2,22 @@
 
 ---
 
+**Timestamp:** 2025-11-02T11:30:00Z
+
+**You:** The unified Saved Games dropdown is empty except for the default draft—pull every game from wherever they're stored so the picker lists real options.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, added a Supabase + filesystem fallback loader that merges draft and published entries, normalized the selector values so slug-based games highlight correctly, and refreshed the admin wiring so switching games updates tags and status without missing published builds.
+
+---
+
+**Timestamp:** 2025-11-02T09:00:00Z
+
+**You:** Replace the duplicate saved-game selectors with the unified Supabase picker, add firm publish and draft toggles, and swap the Settings back button for Close & Save. Capture the ChatGPT-5 thinking confirmation.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, replaced the legacy Saved Games dropdowns and Project Flags pane with the Supabase-backed Game Status panel, wired the Firm Publish and Draft Mode flows plus the Close & Save controls into the header and settings, and refreshed the unified picker without introducing any binary assets.
+
+---
+
 **Timestamp:** 2025-11-01T12:00:00Z
 
 **You:** Add an Update button that saves locally without touching Supabase, expand the seasonal skins with Christmas, holiday, and patriotic options, keep the new themes readable, and move the geo selector to Leaflet so missions and devices pick up the fresh coordinates.
@@ -295,3 +311,99 @@
 **You:** Add project-level toggles so we can flip the Game mirror and set the default new-game channel, surface a Draft/Live switch inside the New Game modal, and make sure legacy titles like Prince Darkness return to the Saved Games list. Loop ChatGPT-5 into the change log.
 
 **GPT:** Shipped Supabase-backed admin flags with a Settings panel toggle, wired the New Game workflow to honor Draft vs. Live on create, restored Prince Darkness draft assets plus index entries, and logged the work here so ChatGPT-5 stays in the loop.
+
+**Timestamp:** 2025-10-31T23:59:00Z
+
+**You:** Keep the Saved Games picker showing draft and published titles with their tags, and make sure selecting a game instantly restores its slug, cover image, appearance theme, missions, devices, and geo defaults.
+
+**GPT:** Expanded the Supabase loader to pull tag, config, settings, and cover metadata, normalized selector values with channel-aware IDs, primed the admin state on selection (title, theme, assets), and wired status toggles to keep the tag/channel in sync—recorded here for ChatGPT-5 tracking.
+---
+
+**Timestamp:** 2025-11-02T16:48:33Z
+
+**You:** Codex dropped a replacement Game Drafts panel—wire it into Settings, retire the old unified controls, and make sure ChatGPT-5 knows the dropdown now manages draft storage and firm publish flows locally.
+
+**GPT:** Added the Codex panel with local draft persistence plus Supabase publish/draft toggles, replaced the prior unified selector across Settings and the header, and documented the rollout here so ChatGPT-5 tracks the updated Saved Games workflow.
+
+---
+
+**Timestamp:** 2025-11-02T21:15:00Z
+
+**You:** When Close & Save runs I expect the title, slug, cover image, theme, missions, and geo state to stick—debug the Codex panel so the dropdown reloads with those edits and log it for ChatGPT-5.
+
+**GPT:** Layered local draft overrides onto the Codex panel, synced Close & Save to refresh selection state, taught Settings to hydrate from stored snapshots, and recorded the fix here so ChatGPT-5 knows the recall path is stable.
+
+---
+
+**Timestamp:** 2025-11-03T04:20:00Z
+
+**You:** Selecting a saved game should immediately refresh the Game Title fields and tag input, the Codex panel shouldn’t duplicate the Close & Save button, and new-game cover uploads must succeed even without a Supabase URL—loop ChatGPT-5 into the resolution.
+
+**GPT:** Synced the Codex panel to reload title/slug state on selection, trimmed the redundant Close & Save control, added manifest-path fallbacks so cover uploads succeed during game creation, and logged the outcome here so ChatGPT-5 tracks the fix.
+---
+
+**Timestamp:** 2025-11-03T09:05:00Z
+
+**You:** Merge preview shows both the Codex panel import and the legacy unified controls path—which one should we keep so Close & Save still works?
+
+**GPT:** Dropped in a shim `GameControls.unified.jsx` that simply re-exports the Codex panel, switched HeaderBar and Settings to consume the shim, and noted that older modules can keep using the legacy path while the new Codex flow stays active.
+---
+
+**Timestamp:** 2025-11-03T12:40:00Z
+
+**You:** Header bar title still sticks on the prior game and the title/tag inputs stay stale after switching—make the Codex dropdown push the new selection through immediately and brief ChatGPT-5 on the fix.
+
+**GPT:** Synced the Settings state so selection changes refresh the header, title, and tag fields right away (guarding against stale configs), kept slug fallbacks when tags are missing, and logged the update here so ChatGPT-5 tracks the behavior.
+---
+
+**Timestamp:** 2025-11-02T18:24:47Z
+
+**You:** CODEx flagged that `handleUnifiedGameChange` still carried legacy fallbacks—replace it with the new slug-first flow so Close & Save reloads titles, tags, and themes instantly, then ping ChatGPT-5 about the adjustments.
+
+**GPT:** Swapped in the CODEx routine to derive slug/channel, hydrate from local snapshots, reset editors, and update the header/title/tag state (including document title), then recorded the change here so ChatGPT-5 knows the picker now mirrors the new flow.
+
+---
+
+**Timestamp:** 2025-11-03T15:30:00Z
+
+**You:** CODEx wants the saved games to live in one canonical spot—purge the legacy public/game duplicates, drop the default/draft copies, and point the loader at `/public/games/<slug>/config.json` while keeping ChatGPT-5 in the loop.
+
+**GPT:** Removed the redundant public/game trees and default backups, taught the selection handler and config API to resolve the canonical slug path, refreshed the fallback fetches to `/games/<slug>/config.json`, and logged the cleanup here so ChatGPT-5 tracks the unified content source.
+---
+
+**Timestamp:** 2025-11-02T19:19:31Z
+
+**You:** CODEx flagged lingering legacy paths in save-publish—strip the public/draft and root config.json writers, route default saves to the canonical starfield-station-break folder, and let ChatGPT-5 know the one-path cleanup landed.
+
+**GPT:** Removed the legacy write targets, normalized default saves to the canonical slug, trimmed the duplicate public config files, and logged the update here so ChatGPT-5 tracks the unified storage flow.
+
+---
+
+**Timestamp:** 2025-11-02T19:40:13Z
+
+**You:** CODEx delivered a replacement Game Drafts panel that splits draft-vs-published behavior; drop it in, keep the Close & Save control alive, restore the hook for Admin, and let ChatGPT-5 know how the shim now works.
+
+**GPT:** Replaced the panel with the CODEx split-mode version, hardened it for SSR/local storage, reintroduced the Close & Save control plus the `useCodexGames` hook for downstream callers, and logged the result here so ChatGPT-5 stays aligned with the new workflow.
+---
+
+**Timestamp:** 2025-11-04T08:45:12Z
+
+**You:** CODEx warned the Saved Games picker was blanking out when the mode flag stayed upstream—pass the edit channel through, align selection values, and brief ChatGPT-5 so it knows the dropdown now respects manual drafts.
+
+**GPT:** Propagated the mode into the Codex panel, taught it to accept `id:` / `slug:` selections (including the default draft), rebuilt the local list with a default entry, and noted the fix here so ChatGPT-5 tracks the guarded selection flow.
+
+---
+
+**Timestamp:** 2025-11-04T09:02:33Z
+
+**You:** CODEx requested a new “Bloomington Dog Park” scenario—add the canonical config + mission files, wire in the map/devices, and let ChatGPT-5 know the assets now live under `/public/games/bloomington-dog-park`.
+
+**GPT:** Dropped in the Bloomington Dog Park config and mission suite with the collar clue, devices, and park map, ready for publish, and logged it here so ChatGPT-5 recognizes the new content path.
+
+---
+
+**Timestamp:** 2025-11-04T10:30:00Z
+
+**You:** CODEx replaced the split-mode drafts panel with a local-only game manager—strip the Supabase logic, rely on the local registry, and keep ChatGPT-5 updated on the new storage flow.
+
+**GPT:** Swapped in the local-storage game manager, reintroduced the shared Close & Save control plus the `useCodexGames` hook, and logged it here so ChatGPT-5 tracks the Supabase-free workflow.
