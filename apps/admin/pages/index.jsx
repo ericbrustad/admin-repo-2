@@ -9,6 +9,7 @@ import SafeBoundary from '../components/SafeBoundary';
 import CodexDropGameDraftsPanel, {
   useCodexGames as useUnifiedGames,
 } from '../components/GameControls.unified.jsx';
+import RepoSnapshotFooter from '../components/RepoSnapshotFooter.jsx';
 import GlobalLocationSelector from '../components/Settings/GlobalLocationSelector.jsx';
 import HideLegacyStatusToggles from '../components/HideLegacyStatusToggles';
 import { AppearanceEditor } from '../components/ui-kit';
@@ -6564,6 +6565,7 @@ export default function Admin() {
           <div style={S.card}>
             <h3 style={{ marginTop:0 }}>Game Settings</h3>
             <CodexDropGameDraftsPanel
+              mode={editChannel || 'draft'}
               value={currentGameId}
               onChange={(value, game) => {
                 setConfirmDeleteOpen(false);
@@ -10149,6 +10151,7 @@ function AssignedMediaPageTab({
           />
         </div>
       </div>
+      <RepoSnapshotFooter />
     </main>
   );
 }

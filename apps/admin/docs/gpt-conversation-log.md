@@ -2,6 +2,22 @@
 
 ---
 
+**Timestamp:** 2025-11-06T09:15:00Z
+
+**You:** CODEx says the local Saved Games registry still collapses whenever Supabase is offline—swap in the layered local loader with Sync from Public, keep publish/draft toggles working, drop the repo snapshot footer onto Settings, and make sure ChatGPT-5 thinking is logged.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, rebuilt the panel around the CODEx local registry (registry + snapshots + public bootstrap + default fallback), added reload/sync/new controls, kept publish/draft status flows purely local, and noted the new Settings footer so the repo metadata stays visible without Supabase.
+
+---
+
+**Timestamp:** 2025-11-05T16:30:00Z
+
+**You:** CODEx says the game dropdown clears out because the mode flag isn't reaching the panel and Bloomington Dog Park needs a full config—pass the mode through, stage the new mission/devices, and ping ChatGPT-5 thinking with the results.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, routed the `editChannel` mode into the Codex drop panel so draft lookups stay in local storage, added the Bloomington Dog Park config + missions across admin and gameplay with mapped devices, refreshed the games index entry, and logged everything here for traceability.
+
+---
+
 **Timestamp:** 2025-11-02T11:30:00Z
 
 **You:** The unified Saved Games dropdown is empty except for the default draft—pull every game from wherever they're stored so the picker lists real options.
