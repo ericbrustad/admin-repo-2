@@ -2844,23 +2844,16 @@ export default function Admin() {
     const slug = (activeSlug || 'default').trim();
     const normalizedChannel = slug === 'default' ? 'draft' : headerStatus;
     const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
-    const exact = list.find((game) => {
-      const entrySlug = (game?.slug || '').trim();
-      const entryTag = (typeof game?.tag === 'string' ? game.tag : game?.channel) === 'published' ? 'published' : 'draft';
-      return entrySlug === slug && entryTag === normalizedChannel;
-    });
+    const exact = list.find((game) => (game?.slug || '').trim() === slug && (game?.channel || 'draft') === normalizedChannel);
     if (exact) return exact;
     const fallback = list.find((game) => (game?.slug || '').trim() === slug);
     return fallback || null;
   }, [unifiedSupabaseGames, activeSlug, headerStatus]);
   const currentGameId = useMemo(() => {
     if (currentGameRecord?.slug === 'default') return 'default::draft';
-    if (currentGameRecord?.id != null) {
-      const channel = currentGameRecord?.tag === 'published' || currentGameRecord?.channel === 'published' ? 'published' : 'draft';
-      return `id:${currentGameRecord.id}::${channel}`;
-    }
+    if (currentGameRecord?.id != null) return `id:${currentGameRecord.id}`;
     if (currentGameRecord?.slug) {
-      const channel = currentGameRecord?.tag === 'published' || currentGameRecord?.channel === 'published' ? 'published' : 'draft';
+      const channel = currentGameRecord.channel === 'published' ? 'published' : 'draft';
       return `slug:${currentGameRecord.slug}::${channel}`;
     }
     if (activeSlug === 'default') return 'default::draft';
@@ -4857,38 +4850,15 @@ export default function Admin() {
   const handleUnifiedGameChange = useCallback(
     (value, game) => {
       if (!value && !game) return;
+      if (value === 'default::draft' || game?.slug === 'default') {
+        applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
+        return;
+      }
 
       const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
       let match = game || null;
       let slug = '';
       let channel = 'draft';
-
-      if (value === 'default::draft' || game?.slug === 'default') {
-        const defaults = defaultConfig();
-        const normalized = normalizeGameMetadata({ ...defaults }, 'default');
-        setConfig(normalized);
-        setSuite(null);
-        setActiveGameMeta({
-          id: null,
-          slug: 'default',
-          tag: 'draft',
-          default_channel: 'draft',
-          game_enabled: true,
-          settings: {},
-          cover_image: defaults?.game?.coverImage ?? null,
-        });
-        setTitleDraft((normalized?.game?.title || STARFIELD_DEFAULTS.title || 'Default Game').trim());
-        setSelected(null);
-        setEditing(null);
-        setSelectedDevIdx(null);
-        setSelectedMissionIdx(null);
-        setDirty(false);
-        applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
-        setActiveTagsToOnly('default');
-        logConversation('You', 'Switched to Default Game (draft)');
-        logConversation('GPT', 'Tag filters updated to focus on the selected game.');
-        return;
-      }
 
       if (typeof value === 'string' && value.startsWith('slug:')) {
         const payload = value.slice(5);
