@@ -317,10 +317,3 @@
 **You:** Keep the Saved Games picker showing draft and published titles with their tags, and make sure selecting a game instantly restores its slug, cover image, appearance theme, missions, devices, and geo defaults.
 
 **GPT:** Expanded the Supabase loader to pull tag, config, settings, and cover metadata, normalized selector values with channel-aware IDs, primed the admin state on selection (title, theme, assets), and wired status toggles to keep the tag/channel in sync—recorded here for ChatGPT-5 tracking.
----
-
-**Timestamp:** 2025-11-02T16:48:33Z
-
-**You:** Codex dropped a replacement Game Drafts panel—wire it into Settings, retire the old unified controls, and make sure ChatGPT-5 knows the dropdown now manages draft storage and firm publish flows locally.
-
-**GPT:** Added the Codex panel with local draft persistence plus Supabase publish/draft toggles, replaced the prior unified selector across Settings and the header, and documented the rollout here so ChatGPT-5 tracks the updated Saved Games workflow.

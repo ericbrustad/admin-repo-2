@@ -6,9 +6,10 @@ import AnswerResponseEditor from '../components/AnswerResponseEditor';
 import InlineMissionResponses from '../components/InlineMissionResponses';
 import AssignedMediaTab from '../components/AssignedMediaTab';
 import SafeBoundary from '../components/SafeBoundary';
-import CodexDropGameDraftsPanel, {
-  useCodexGames as useUnifiedGames,
-} from '../components/CodexDrop.GameDraftsPanel.jsx';
+import GameStatusPanel, {
+  UnifiedGameSelector as UnifiedGameSelectorControl,
+  useGames as useUnifiedGames,
+} from '../components/GameControls.unified.jsx';
 import GlobalLocationSelector from '../components/Settings/GlobalLocationSelector.jsx';
 import HideLegacyStatusToggles from '../components/HideLegacyStatusToggles';
 import { AppearanceEditor } from '../components/ui-kit';
@@ -2832,23 +2833,16 @@ export default function Admin() {
     const slug = (activeSlug || 'default').trim();
     const normalizedChannel = slug === 'default' ? 'draft' : headerStatus;
     const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
-    const exact = list.find((game) => {
-      const entrySlug = (game?.slug || '').trim();
-      const entryTag = (typeof game?.tag === 'string' ? game.tag : game?.channel) === 'published' ? 'published' : 'draft';
-      return entrySlug === slug && entryTag === normalizedChannel;
-    });
+    const exact = list.find((game) => (game?.slug || '').trim() === slug && (game?.channel || 'draft') === normalizedChannel);
     if (exact) return exact;
     const fallback = list.find((game) => (game?.slug || '').trim() === slug);
     return fallback || null;
   }, [unifiedSupabaseGames, activeSlug, headerStatus]);
   const currentGameId = useMemo(() => {
     if (currentGameRecord?.slug === 'default') return 'default::draft';
-    if (currentGameRecord?.id != null) {
-      const channel = currentGameRecord?.tag === 'published' || currentGameRecord?.channel === 'published' ? 'published' : 'draft';
-      return `id:${currentGameRecord.id}::${channel}`;
-    }
+    if (currentGameRecord?.id != null) return `id:${currentGameRecord.id}`;
     if (currentGameRecord?.slug) {
-      const channel = currentGameRecord?.tag === 'published' || currentGameRecord?.channel === 'published' ? 'published' : 'draft';
+      const channel = currentGameRecord.channel === 'published' ? 'published' : 'draft';
       return `slug:${currentGameRecord.slug}::${channel}`;
     }
     if (activeSlug === 'default') return 'default::draft';
@@ -4812,38 +4806,15 @@ export default function Admin() {
   const handleUnifiedGameChange = useCallback(
     (value, game) => {
       if (!value && !game) return;
+      if (value === 'default::draft' || game?.slug === 'default') {
+        applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
+        return;
+      }
 
       const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
       let match = game || null;
       let slug = '';
       let channel = 'draft';
-
-      if (value === 'default::draft' || game?.slug === 'default') {
-        const defaults = defaultConfig();
-        const normalized = normalizeGameMetadata({ ...defaults }, 'default');
-        setConfig(normalized);
-        setSuite(null);
-        setActiveGameMeta({
-          id: null,
-          slug: 'default',
-          tag: 'draft',
-          default_channel: 'draft',
-          game_enabled: true,
-          settings: {},
-          cover_image: defaults?.game?.coverImage ?? null,
-        });
-        setTitleDraft((normalized?.game?.title || STARFIELD_DEFAULTS.title || 'Default Game').trim());
-        setSelected(null);
-        setEditing(null);
-        setSelectedDevIdx(null);
-        setSelectedMissionIdx(null);
-        setDirty(false);
-        applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
-        setActiveTagsToOnly('default');
-        logConversation('You', 'Switched to Default Game (draft)');
-        logConversation('GPT', 'Tag filters updated to focus on the selected game.');
-        return;
-      }
 
       if (typeof value === 'string' && value.startsWith('slug:')) {
         const payload = value.slice(5);
@@ -4851,27 +4822,26 @@ export default function Admin() {
         slug = (slugValue || '').trim();
         channel = channelValue === 'published' ? 'published' : 'draft';
         if (!match && slug) {
-          match = list.find((entry) => (entry?.slug || '').trim() === slug && (entry?.tag || entry?.channel || 'draft') === channel)
+          match = list.find((entry) => (entry?.slug || '').trim() === slug && (entry?.channel || 'draft') === channel)
             || list.find((entry) => (entry?.slug || '').trim() === slug)
             || null;
         }
       } else if (typeof value === 'string' && value.startsWith('id:')) {
-        const payload = value.slice(3);
-        const [idValue, channelValue] = payload.split('::');
+        const idValue = value.slice(3);
         if (!match) {
           match = list.find((entry) => String(entry?.id ?? '') === idValue) || null;
         }
         if (match) {
           slug = (match.slug || '').trim();
-          channel = channelValue === 'published' ? 'published' : (match.tag === 'published' || match.channel === 'published' ? 'published' : 'draft');
+          channel = match.channel === 'published' ? 'published' : 'draft';
         }
-      } else if (typeof value === 'string') {
+      } else {
         if (!match) {
           match = list.find((entry) => String(entry?.id ?? '') === String(value ?? '')) || null;
         }
         if (match) {
           slug = (match.slug || '').trim();
-          channel = match.tag === 'published' || match.channel === 'published' ? 'published' : 'draft';
+          channel = match.channel === 'published' ? 'published' : 'draft';
         }
       }
 
@@ -4885,112 +4855,14 @@ export default function Admin() {
         channel = 'draft';
       }
 
-      const normalizedSlug = slug || 'default';
-      const normalizedChannel = normalizedSlug === 'default' ? 'draft' : (channel === 'published' ? 'published' : 'draft');
-      const labelBase = (match?.title || match?.config?.game?.title || slug || '').trim() || normalizedSlug;
-      const label = `${labelBase}${normalizedChannel === 'published' ? ' (published)' : ' (draft)'}`;
-
-      if (match) {
-        const defaults = defaultConfig();
-        const baseSettings = match.settings && typeof match.settings === 'object' ? match.settings : {};
-        const normalizedTag = match.tag === 'published' ? 'published' : normalizedChannel;
-        setActiveGameMeta({
-          id: match.id ?? null,
-          slug: normalizedSlug,
-          tag: normalizedTag,
-          default_channel: match.default_channel === 'published' ? 'published' : 'draft',
-          game_enabled: typeof match.game_enabled === 'boolean' ? match.game_enabled : true,
-          settings: baseSettings,
-          cover_image: match.coverImage ?? match.cover_image ?? null,
-        });
-
-        const rawConfig = match.config && typeof match.config === 'object' ? match.config : null;
-        if (rawConfig) {
-          let merged = {
-            ...defaults,
-            ...rawConfig,
-            game: { ...defaults.game, ...(rawConfig.game || {}), slug: normalizedSlug },
-            splash: { ...defaults.splash, ...(rawConfig.splash || {}) },
-            timer: { ...defaults.timer, ...(rawConfig.timer || {}) },
-            devices: Array.isArray(rawConfig.devices)
-              ? rawConfig.devices
-              : Array.isArray(rawConfig.powerups)
-                ? rawConfig.powerups
-                : [],
-            media: { rewardsPool: [], penaltiesPool: [], ...(rawConfig.media || {}) },
-            icons: { ...DEFAULT_ICONS, ...(rawConfig.icons || {}) },
-            appearance: {
-              ...defaultAppearance(),
-              ...defaults.appearance,
-              ...(rawConfig.appearance || {}),
-            },
-            map: { ...defaults.map, ...(rawConfig.map || {}) },
-            geofence: { ...defaults.geofence, ...(rawConfig.geofence || {}) },
-            mediaTriggers: { ...DEFAULT_TRIGGER_CONFIG, ...(rawConfig.mediaTriggers || {}) },
-          };
-          const storedSkin = rawConfig.appearanceSkin && ADMIN_SKIN_TO_UI.has(rawConfig.appearanceSkin)
-            ? rawConfig.appearanceSkin
-            : null;
-          merged.appearanceSkin = storedSkin || detectAppearanceSkin(merged.appearance, rawConfig.appearanceSkin);
-          merged.appearanceTone = rawConfig.appearanceTone || merged.appearanceTone || 'light';
-          merged = applyDefaultIcons(merged);
-          merged = normalizeGameMetadata(merged, normalizedSlug);
-          setConfig(merged);
-          const mergedTitle = (merged?.game?.title || labelBase || normalizedSlug).trim();
-          setTitleDraft(mergedTitle);
-        } else {
-          setConfig(null);
-          setTitleDraft(labelBase);
-        }
-      } else {
-        setActiveGameMeta({
-          id: null,
-          slug: normalizedSlug,
-          tag: normalizedChannel,
-          default_channel: normalizedChannel,
-          game_enabled: true,
-          settings: {},
-          cover_image: null,
-        });
-        setConfig(null);
-        setTitleDraft(labelBase);
-      }
-
-      setSuite(null);
-      setSelected(null);
-      setEditing(null);
-      setSelectedDevIdx(null);
-      setSelectedMissionIdx(null);
-      setDirty(false);
-
-      applyOpenGameFromMenu(normalizedSlug, normalizedChannel, label);
-      setActiveTagsToOnly(normalizedSlug);
+      const labelBase = match?.title || slug;
+      const label = `${labelBase}${channel === 'published' ? ' (published)' : ' (draft)'}`;
+      applyOpenGameFromMenu(slug, channel, label);
+      setActiveTagsToOnly(slug);
       logConversation('You', `Switched to ${label}`);
       logConversation('GPT', 'Tag filters updated to focus on the selected game.');
     },
-    [
-      ADMIN_SKIN_TO_UI,
-      DEFAULT_ICONS,
-      DEFAULT_TRIGGER_CONFIG,
-      applyDefaultIcons,
-      applyOpenGameFromMenu,
-      defaultAppearance,
-      defaultConfig,
-      detectAppearanceSkin,
-      logConversation,
-      normalizeGameMetadata,
-      setActiveGameMeta,
-      setActiveTagsToOnly,
-      setConfig,
-      setDirty,
-      setEditing,
-      setSelected,
-      setSelectedDevIdx,
-      setSelectedMissionIdx,
-      setSuite,
-      setTitleDraft,
-      unifiedSupabaseGames,
-    ],
+    [applyOpenGameFromMenu, logConversation, setActiveTagsToOnly, unifiedSupabaseGames],
   );
 
   const handleUnifiedStatusChange = useCallback(
@@ -5003,21 +4875,9 @@ export default function Admin() {
       if (game?.slug) {
         setActiveSlug(game.slug);
       }
-      if (game) {
-        setActiveGameMeta((prev) => ({
-          ...(prev || {}),
-          id: game.id ?? prev?.id ?? null,
-          slug: game.slug ?? prev?.slug ?? activeSlug ?? 'default',
-          tag: game.tag === 'published' || game.channel === 'published' ? 'published' : 'draft',
-          default_channel: prev?.default_channel ?? (game.default_channel === 'published' ? 'published' : 'draft'),
-          game_enabled: typeof game.game_enabled === 'boolean' ? game.game_enabled : prev?.game_enabled,
-          settings: game.settings && typeof game.settings === 'object' ? game.settings : prev?.settings || {},
-          cover_image: game.coverImage ?? game.cover_image ?? prev?.cover_image ?? null,
-        }));
-      }
       void reloadGamesList();
     },
-    [activeSlug, reloadGamesList, setActiveGameMeta, setActiveSlug, setEditChannel],
+    [reloadGamesList, setActiveSlug, setEditChannel],
   );
 
   useEffect(() => {
@@ -5579,6 +5439,14 @@ export default function Admin() {
               Published
             </button>
           </div>
+          {gameEnabled && (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <UnifiedGameSelectorControl
+                currentGameId={currentGameId}
+                onSelect={handleUnifiedGameChange}
+              />
+            </div>
+          )}
         </div>
         {tab !== 'settings' && (
           <div style={S.headerHint}>
@@ -6493,13 +6361,13 @@ export default function Admin() {
         <main style={S.wrap}>
           <div style={S.card}>
             <h3 style={{ marginTop:0 }}>Game Settings</h3>
-            <CodexDropGameDraftsPanel
-              value={currentGameId}
-              onChange={(value, game) => {
+            <GameStatusPanel
+              currentGameId={currentGameId}
+              onChangeGame={(value, game) => {
                 setConfirmDeleteOpen(false);
                 handleUnifiedGameChange(value, game);
               }}
-              onCloseAndSave={handleSaveAllSettings}
+              onSaveSettings={handleSaveAllSettings}
               onStatusChange={handleUnifiedStatusChange}
             />
             <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
