@@ -311,3 +311,9 @@
 **You:** Add project-level toggles so we can flip the Game mirror and set the default new-game channel, surface a Draft/Live switch inside the New Game modal, and make sure legacy titles like Prince Darkness return to the Saved Games list. Loop ChatGPT-5 into the change log.
 
 **GPT:** Shipped Supabase-backed admin flags with a Settings panel toggle, wired the New Game workflow to honor Draft vs. Live on create, restored Prince Darkness draft assets plus index entries, and logged the work here so ChatGPT-5 stays in the loop.
+
+**Timestamp:** 2025-10-31T23:59:00Z
+
+**You:** Keep the Saved Games picker showing draft and published titles with their tags, and make sure selecting a game instantly restores its slug, cover image, appearance theme, missions, devices, and geo defaults.
+
+**GPT:** Expanded the Supabase loader to pull tag, config, settings, and cover metadata, normalized selector values with channel-aware IDs, primed the admin state on selection (title, theme, assets), and wired status toggles to keep the tag/channel in sync—recorded here for ChatGPT-5 tracking.
