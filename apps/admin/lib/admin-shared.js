@@ -218,6 +218,10 @@ export const FONT_FAMILIES = [
   { v:'Times New Roman, Times, serif', label:'Times New Roman' },
   { v:'Arial, Helvetica, sans-serif', label:'Arial' },
   { v:'Courier New, Courier, monospace', label:'Courier New' },
+  { v:'"Oswald", "Segoe UI", sans-serif', label:'Oswald' },
+  { v:'"Cinzel", "Times New Roman", serif', label:'Cinzel' },
+  { v:'"Lobster", "Segoe UI", cursive', label:'Lobster' },
+  { v:'"Black Ops One", "Segoe UI", sans-serif', label:'Black Ops One' },
 ];
 export const DEFAULT_APPEARANCE_SKIN = 'forest-outpost';
 

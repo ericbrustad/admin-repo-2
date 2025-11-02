@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { clearDefaultGeo, getDefaultGeo, setDefaultGeo } from '../../lib/geo/defaultGeo.js';
 
+const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+const LEAFLET_JS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+
 export default function GlobalLocationSelector({
   initial,
   useAsDefault = false,
   onUpdate,
   onUseAsDefaultChange,
 }) {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+  const [leafletReady, setLeafletReady] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.L),
+  );
   const [enabled, setEnabled] = useState(() => Boolean(initial));
   const [lat, setLat] = useState(() => initial?.lat ?? 44.9778);
   const [lng, setLng] = useState(() => initial?.lng ?? -93.265);
@@ -35,60 +40,141 @@ export default function GlobalLocationSelector({
   }, [initial?.lat, initial?.lng]);
 
   useEffect(() => {
-    if (!enabled || !token) return undefined;
+    if (typeof window === 'undefined') return undefined;
+    if (window.L) {
+      setLeafletReady(true);
+      return undefined;
+    }
 
-    (async () => {
-      try {
-        const mapboxgl = (await import('mapbox-gl')).default;
-        mapboxgl.accessToken = token;
-        const map = new mapboxgl.Map({
-          container: mapContainerRef.current,
-          style: 'mapbox://styles/mapbox/streets-v11',
-          center: [lng, lat],
-          zoom: 12,
-        });
-        const marker = new mapboxgl.Marker({ draggable: true })
-          .setLngLat([lng, lat])
-          .addTo(map);
+    const linkId = 'leaflet-stylesheet';
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      link.href = LEAFLET_CSS_URL;
+      document.head.appendChild(link);
+    }
 
-        marker.on('dragend', () => {
-          const point = marker.getLngLat();
-          setLat(Number(point.lat.toFixed(6)));
-          setLng(Number(point.lng.toFixed(6)));
-        });
-        map.on('click', (event) => {
-          marker.setLngLat(event.lngLat);
-          setLat(Number(event.lngLat.lat.toFixed(6)));
-          setLng(Number(event.lngLat.lng.toFixed(6)));
-        });
-
-        mapInstanceRef.current = map;
-        markerRef.current = marker;
-      } catch (error) {
-        console.warn('Mapbox unavailable, falling back to manual inputs', error);
-      }
-    })();
-
-    return () => {
-      markerRef.current = null;
-      if (mapInstanceRef.current) {
-        try { mapInstanceRef.current.remove(); } catch {}
-        mapInstanceRef.current = null;
-      }
+    const scriptId = 'leaflet-script';
+    const handleLoad = () => {
+      setLeafletReady(Boolean(window.L));
     };
-  }, [enabled, token]);
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = LEAFLET_JS_URL;
+      script.async = true;
+      script.dataset.loaded = 'false';
+      script.addEventListener(
+        'load',
+        () => {
+          script.dataset.loaded = 'true';
+          handleLoad();
+        },
+        { once: true },
+      );
+      script.addEventListener(
+        'error',
+        () => {
+          console.warn('Leaflet failed to load from CDN');
+          setLeafletReady(false);
+        },
+        { once: true },
+      );
+      document.body.appendChild(script);
+    } else if (script.dataset.loaded === 'true') {
+      handleLoad();
+    } else {
+      script.addEventListener('load', handleLoad, { once: true });
+    }
+
+    return () => {};
+  }, []);
 
   useEffect(() => {
-    if (!enabled) return;
-    if (token && markerRef.current) {
-      markerRef.current.setLngLat([lng, lat]);
+    if (!enabled) {
+      markerRef.current = null;
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
+        mapInstanceRef.current = null;
+      }
+      return;
     }
-    if (token && mapInstanceRef.current) {
-      try { mapInstanceRef.current.setCenter([lng, lat]); } catch {}
-    }
-  }, [lat, lng, enabled, token]);
+    if (!leafletReady || typeof window === 'undefined') return;
+    if (!mapContainerRef.current) return;
+    const L = window.L;
+    if (!L) return;
 
-  const coordinateValid = useMemo(() => Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)), [lat, lng]);
+    const numericLat = Number(lat) || 44.9778;
+    const numericLng = Number(lng) || -93.265;
+    const center = [numericLat, numericLng];
+
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center,
+        zoom: 12,
+      });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      const marker = L.marker(center, { draggable: true }).addTo(map);
+      marker.on('dragend', () => {
+        const point = marker.getLatLng();
+        setLat(Number(point.lat.toFixed(6)));
+        setLng(Number(point.lng.toFixed(6)));
+      });
+      map.on('click', (event) => {
+        marker.setLatLng(event.latlng);
+        setLat(Number(event.latlng.lat.toFixed(6)));
+        setLng(Number(event.latlng.lng.toFixed(6)));
+      });
+
+      mapInstanceRef.current = map;
+      markerRef.current = marker;
+    } else {
+      try {
+        mapInstanceRef.current.setView(center);
+      } catch {}
+      if (markerRef.current) {
+        markerRef.current.setLatLng(center);
+      }
+    }
+  }, [enabled, leafletReady]);
+
+  useEffect(() => {
+    if (!enabled || !leafletReady) return;
+    if (!markerRef.current || !mapInstanceRef.current) return;
+    const numericLat = Number(lat);
+    const numericLng = Number(lng);
+    if (!Number.isFinite(numericLat) || !Number.isFinite(numericLng)) return;
+    markerRef.current.setLatLng([numericLat, numericLng]);
+    try {
+      mapInstanceRef.current.panTo([numericLat, numericLng], { animate: false });
+    } catch {}
+  }, [lat, lng, enabled, leafletReady]);
+
+  useEffect(
+    () => () => {
+      markerRef.current = null;
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
+        mapInstanceRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const coordinateValid = useMemo(
+    () => Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)),
+    [lat, lng],
+  );
 
   const handleUpdateAllPins = async () => {
     if (!coordinateValid) return;
@@ -142,28 +228,50 @@ export default function GlobalLocationSelector({
 
       {enabled && (
         <>
-          {token ? (
-            <div ref={mapContainerRef} style={{ height: 220, borderRadius: 10, overflow: 'hidden' }} />
-          ) : (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input
-                type="number"
-                step="0.000001"
-                value={lat}
-                onChange={(event) => setLat(Number(event.target.value))}
-                placeholder="Latitude"
-                style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(15,23,42,0.12)', width: 180 }}
-              />
-              <input
-                type="number"
-                step="0.000001"
-                value={lng}
-                onChange={(event) => setLng(Number(event.target.value))}
-                placeholder="Longitude"
-                style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(15,23,42,0.12)', width: 180 }}
-              />
-            </div>
-          )}
+          <div style={{ position: 'relative' }}>
+            {!leafletReady && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                background: 'rgba(15,23,42,0.08)',
+                color: '#475569',
+                fontSize: 14,
+                zIndex: 1,
+              }}>
+                Loading Leaflet map…
+              </div>
+            )}
+            <div
+              ref={mapContainerRef}
+              style={{
+                height: 220,
+                borderRadius: 10,
+                overflow: 'hidden',
+                border: '1px solid rgba(15,23,42,0.12)',
+                background: '#0b0c10',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="number"
+              step="0.000001"
+              value={lat}
+              onChange={(event) => setLat(Number(event.target.value))}
+              placeholder="Latitude"
+              style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(15,23,42,0.12)', width: 180 }}
+            />
+            <input
+              type="number"
+              step="0.000001"
+              value={lng}
+              onChange={(event) => setLng(Number(event.target.value))}
+              placeholder="Longitude"
+              style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(15,23,42,0.12)', width: 180 }}
+            />
+          </div>
 
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <input
@@ -200,19 +308,15 @@ export default function GlobalLocationSelector({
               onClick={handleUpdateAllPins}
               disabled={!coordinateValid || updating}
               style={{
-                fontSize: 13,
-                padding: '8px 12px',
+                padding: '8px 14px',
                 borderRadius: 10,
-                border: '1px solid rgba(34,197,94,0.45)',
-                background: 'rgba(34,197,94,0.12)',
-                fontWeight: 700,
-                color: '#166534',
-                cursor: updating ? 'wait' : 'pointer',
-                opacity: !coordinateValid || updating ? 0.6 : 1,
-                transition: 'opacity 0.2s ease',
+                border: '1px solid rgba(15,23,42,0.18)',
+                background: coordinateValid ? '#0ea5e9' : '#cbd5f5',
+                color: coordinateValid ? '#ffffff' : '#475569',
+                cursor: coordinateValid ? 'pointer' : 'not-allowed',
               }}
             >
-              {updating ? 'Updating…' : 'Update All Pins'}
+              {updating ? 'Updating…' : 'Update all pins to this location'}
             </button>
           </div>
         </>
@@ -220,3 +324,4 @@ export default function GlobalLocationSelector({
     </div>
   );
 }
+

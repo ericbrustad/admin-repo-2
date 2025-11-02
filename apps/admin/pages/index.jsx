@@ -77,6 +77,56 @@ function hexToRgb(hex) {
     return `${r}, ${g}, ${bl}`;
   } catch { return '0,0,0'; }
 }
+
+const LOCAL_SNAPSHOT_STORAGE_KEY = 'erix.localSnapshots.v1';
+
+function readLocalSnapshots() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(LOCAL_SNAPSHOT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (error) {
+    console.warn('Failed to read local snapshots', error);
+  }
+  return null;
+}
+
+function writeLocalSnapshots(map) {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload = map && typeof map === 'object' ? JSON.stringify(map) : '';
+    if (payload) {
+      window.localStorage.setItem(LOCAL_SNAPSHOT_STORAGE_KEY, payload);
+    } else {
+      window.localStorage.removeItem(LOCAL_SNAPSHOT_STORAGE_KEY);
+    }
+  } catch (error) {
+    console.warn('Failed to persist local snapshots', error);
+  }
+}
+
+function persistLocalSnapshot(slug, channel, snapshot) {
+  if (typeof window === 'undefined') return null;
+  const key = `${slug || 'default'}::${channel || 'draft'}`;
+  const store = readLocalSnapshots() || {};
+  store[key] = {
+    savedAt: new Date().toISOString(),
+    snapshot,
+  };
+  writeLocalSnapshots(store);
+  return store[key];
+}
+
+function removeLocalSnapshot(slug, channel) {
+  if (typeof window === 'undefined') return;
+  const key = `${slug || 'default'}::${channel || 'draft'}`;
+  const store = readLocalSnapshots();
+  if (!store || !store[key]) return;
+  delete store[key];
+  writeLocalSnapshots(Object.keys(store).length ? store : null);
+}
 const EXTS = {
   image: /\.(png|jpg|jpeg|webp|bmp|svg|tif|tiff|avif|heic|heif)$/i,
   gif: /\.(gif)$/i,
@@ -1553,7 +1603,622 @@ const APPEARANCE_SKINS = [
       accent: '#a855f7',
       saveGradient: 'linear-gradient(130deg, #a855f7, #38bdf8)',
       saveBorder: '1px solid rgba(165, 180, 252, 0.55)',
-      saveShadow: '0 24px 38px rgba(14, 18, 48, 0.5)',
+    saveShadow: '0 24px 38px rgba(14, 18, 48, 0.5)',
+    }),
+  },
+  {
+    key: 'holiday-christmas',
+    label: 'Christmas Village',
+    description: 'Snow-lit cottages, evergreen garlands, and cocoa glow panels.',
+    uiKey: 'holiday-christmas',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Playfair Display", "Times New Roman", serif',
+      fontSizePx: 24,
+      fontColor: '#12243a',
+      textBgColor: '#f6f9ff',
+      textBgOpacity: 0.78,
+      screenBgColor: '#d9e4f5',
+      screenBgOpacity: 0.52,
+      screenBgImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(18, 52, 92, 0.95), rgba(32, 76, 112, 0.9))',
+      headerBorder: '1px solid rgba(148, 197, 255, 0.55)',
+      headerShadow: '0 40px 70px rgba(12, 28, 52, 0.55)',
+      headerFrameBg: 'linear-gradient(150deg, rgba(28, 64, 108, 0.95), rgba(44, 86, 128, 0.9))',
+      headerFrameBorder: '1px solid rgba(168, 216, 255, 0.6)',
+      headerFrameShadow: '0 24px 38px rgba(12, 32, 60, 0.5)',
+      tabBg: 'linear-gradient(135deg, rgba(218, 235, 255, 0.9), rgba(188, 215, 248, 0.86))',
+      tabActiveBg: 'linear-gradient(145deg, #ef4444, #22c55e)',
+      buttonBg: 'linear-gradient(135deg, rgba(232, 242, 255, 0.92), rgba(202, 224, 248, 0.88))',
+      buttonBorder: '1px solid rgba(148, 197, 255, 0.55)',
+      glassSheen: '0 18px 36px rgba(24, 60, 108, 0.32)',
+      borderSoft: 'rgba(148, 197, 255, 0.45)',
+      chipBg: 'rgba(239, 68, 68, 0.26)',
+      chipBorder: '1px solid rgba(239, 68, 68, 0.38)',
+      linkColor: '#ef4444',
+      accent: '#22c55e',
+      saveGradient: 'linear-gradient(125deg, #ef4444, #22c55e)',
+      saveBorder: '1px solid rgba(248, 113, 113, 0.58)',
+      saveShadow: '0 24px 36px rgba(30, 64, 100, 0.45)',
+    }),
+  },
+  {
+    key: 'spooky-witching-hour',
+    label: "Witches' Midnight Hour",
+    description: 'Twilight cauldrons, broom silhouettes, and moonlit amethyst fog.',
+    uiKey: 'spooky-witching-hour',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Creepster", "Segoe UI", cursive',
+      fontSizePx: 26,
+      fontColor: '#fef3c7',
+      textBgColor: '#1f0d2b',
+      textBgOpacity: 0.6,
+      screenBgColor: '#1b102d',
+      screenBgOpacity: 0.66,
+      screenBgImage: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(32, 12, 52, 0.95), rgba(20, 10, 36, 0.9))',
+      headerBorder: '1px solid rgba(249, 115, 22, 0.55)',
+      headerShadow: '0 42px 74px rgba(10, 6, 22, 0.6)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(44, 18, 68, 0.95), rgba(28, 12, 48, 0.9))',
+      headerFrameBorder: '1px solid rgba(234, 179, 8, 0.55)',
+      headerFrameShadow: '0 24px 36px rgba(12, 6, 30, 0.55)',
+      tabBg: 'linear-gradient(140deg, rgba(60, 20, 68, 0.9), rgba(32, 12, 48, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #f97316, #a855f7)',
+      buttonBg: 'linear-gradient(140deg, rgba(36, 12, 54, 0.94), rgba(24, 10, 42, 0.9))',
+      buttonBorder: '1px solid rgba(249, 115, 22, 0.52)',
+      glassSheen: '0 20px 38px rgba(12, 6, 26, 0.52)',
+      borderSoft: 'rgba(249, 115, 22, 0.42)',
+      chipBg: 'rgba(234, 179, 8, 0.28)',
+      chipBorder: '1px solid rgba(234, 179, 8, 0.44)',
+      linkColor: '#f97316',
+      accent: '#a855f7',
+      saveGradient: 'linear-gradient(130deg, #f97316, #a855f7)',
+      saveBorder: '1px solid rgba(251, 191, 36, 0.55)',
+      saveShadow: '0 26px 40px rgba(12, 6, 28, 0.52)',
+    }),
+  },
+  {
+    key: 'holiday-halloween',
+    label: 'Halloween Harvest',
+    description: 'Jack-o-lantern glow, cinder trails, and midnight carnival trims.',
+    uiKey: 'holiday-halloween',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Chewy", "Comic Sans MS", cursive',
+      fontSizePx: 26,
+      fontColor: '#2d1300',
+      textBgColor: '#fff7ed',
+      textBgOpacity: 0.78,
+      screenBgColor: '#fbe3c7',
+      screenBgOpacity: 0.56,
+      screenBgImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(145deg, rgba(52, 17, 0, 0.95), rgba(30, 10, 0, 0.9))',
+      headerBorder: '1px solid rgba(251, 146, 60, 0.55)',
+      headerShadow: '0 38px 64px rgba(24, 9, 0, 0.5)',
+      headerFrameBg: 'linear-gradient(150deg, rgba(74, 28, 0, 0.95), rgba(42, 16, 0, 0.9))',
+      headerFrameBorder: '1px solid rgba(253, 186, 116, 0.58)',
+      headerFrameShadow: '0 24px 34px rgba(28, 10, 0, 0.46)',
+      tabBg: 'linear-gradient(135deg, rgba(255, 220, 180, 0.9), rgba(253, 186, 116, 0.86))',
+      tabActiveBg: 'linear-gradient(145deg, #f97316, #facc15)',
+      buttonBg: 'linear-gradient(135deg, rgba(255, 214, 170, 0.92), rgba(253, 186, 116, 0.88))',
+      buttonBorder: '1px solid rgba(251, 146, 60, 0.5)',
+      glassSheen: '0 18px 32px rgba(128, 52, 0, 0.3)',
+      borderSoft: 'rgba(251, 146, 60, 0.42)',
+      chipBg: 'rgba(253, 186, 116, 0.28)',
+      chipBorder: '1px solid rgba(251, 146, 60, 0.44)',
+      linkColor: '#d97706',
+      accent: '#f97316',
+      saveGradient: 'linear-gradient(125deg, #f97316, #facc15)',
+      saveBorder: '1px solid rgba(250, 204, 21, 0.52)',
+      saveShadow: '0 22px 34px rgba(64, 24, 0, 0.36)',
+    }),
+  },
+  {
+    key: 'harvest-thanksgiving',
+    label: 'Thanksgiving Harvest',
+    description: 'Amber foliage, farmhouse candles, and copper-burnished trims.',
+    uiKey: 'harvest-thanksgiving',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Merriweather", "Times New Roman", serif',
+      fontSizePx: 24,
+      fontColor: '#3b200b',
+      textBgColor: '#fff2db',
+      textBgOpacity: 0.78,
+      screenBgColor: '#f2cf9b',
+      screenBgOpacity: 0.54,
+      screenBgImage: 'https://images.unsplash.com/photo-1473625247510-8ceb1760943f?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(145deg, rgba(120, 66, 18, 0.95), rgba(88, 44, 10, 0.9))',
+      headerBorder: '1px solid rgba(236, 153, 91, 0.6)',
+      headerShadow: '0 36px 60px rgba(64, 32, 6, 0.4)',
+      headerFrameBg: 'linear-gradient(150deg, rgba(132, 76, 24, 0.94), rgba(102, 54, 14, 0.9))',
+      headerFrameBorder: '1px solid rgba(248, 193, 125, 0.58)',
+      headerFrameShadow: '0 22px 32px rgba(70, 34, 8, 0.4)',
+      tabBg: 'linear-gradient(135deg, rgba(255, 224, 186, 0.9), rgba(252, 200, 150, 0.86))',
+      tabActiveBg: 'linear-gradient(140deg, #f97316, #fbbf24)',
+      buttonBg: 'linear-gradient(135deg, rgba(255, 220, 182, 0.92), rgba(248, 190, 140, 0.88))',
+      buttonBorder: '1px solid rgba(236, 153, 91, 0.5)',
+      glassSheen: '0 18px 30px rgba(112, 56, 12, 0.28)',
+      borderSoft: 'rgba(236, 153, 91, 0.42)',
+      chipBg: 'rgba(251, 191, 119, 0.26)',
+      chipBorder: '1px solid rgba(236, 153, 91, 0.44)',
+      linkColor: '#9a3412',
+      accent: '#f97316',
+      saveGradient: 'linear-gradient(125deg, #f97316, #fbbf24)',
+      saveBorder: '1px solid rgba(246, 189, 96, 0.5)',
+      saveShadow: '0 20px 32px rgba(116, 58, 12, 0.32)',
+    }),
+  },
+  {
+    key: 'harvest-turkey-trail',
+    label: 'Turkey Trail',
+    description: 'Wild turkey ridgebacks with sunrise amber grasses and brass rails.',
+    uiKey: 'harvest-turkey-trail',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Baloo 2", "Comic Sans MS", "Segoe UI", sans-serif',
+      fontSizePx: 25,
+      fontColor: '#341a07',
+      textBgColor: '#fff0d9',
+      textBgOpacity: 0.76,
+      screenBgColor: '#f5d4ac',
+      screenBgOpacity: 0.56,
+      screenBgImage: 'https://images.unsplash.com/photo-1519676867240-f03562e64548?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(120, 60, 14, 0.94), rgba(92, 42, 8, 0.9))',
+      headerBorder: '1px solid rgba(210, 120, 54, 0.55)',
+      headerShadow: '0 34px 58px rgba(62, 28, 6, 0.4)',
+      headerFrameBg: 'linear-gradient(150deg, rgba(132, 72, 20, 0.94), rgba(98, 46, 12, 0.88))',
+      headerFrameBorder: '1px solid rgba(234, 142, 68, 0.55)',
+      headerFrameShadow: '0 22px 32px rgba(72, 34, 8, 0.38)',
+      tabBg: 'linear-gradient(135deg, rgba(252, 208, 164, 0.9), rgba(244, 186, 132, 0.86))',
+      tabActiveBg: 'linear-gradient(140deg, #f97316, #f59e0b)',
+      buttonBg: 'linear-gradient(135deg, rgba(252, 206, 160, 0.92), rgba(244, 182, 128, 0.88))',
+      buttonBorder: '1px solid rgba(210, 120, 54, 0.5)',
+      glassSheen: '0 18px 30px rgba(118, 56, 12, 0.28)',
+      borderSoft: 'rgba(210, 120, 54, 0.42)',
+      chipBg: 'rgba(244, 182, 128, 0.26)',
+      chipBorder: '1px solid rgba(210, 120, 54, 0.44)',
+      linkColor: '#c2410c',
+      accent: '#f97316',
+      saveGradient: 'linear-gradient(125deg, #f97316, #f59e0b)',
+      saveBorder: '1px solid rgba(234, 146, 60, 0.52)',
+      saveShadow: '0 20px 30px rgba(112, 52, 12, 0.32)',
+    }),
+  },
+  {
+    key: 'freedom-fireworks',
+    label: 'Fourth of July Fireworks',
+    description: 'Blue hour skyline, ruby sparks, and chrome flight trails.',
+    uiKey: 'freedom-fireworks',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Oswald", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#0f172a',
+      textBgColor: '#f8fafc',
+      textBgOpacity: 0.74,
+      screenBgColor: '#dbe9ff',
+      screenBgOpacity: 0.5,
+      screenBgImage: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(23, 37, 84, 0.96), rgba(17, 24, 64, 0.9))',
+      headerBorder: '1px solid rgba(96, 165, 250, 0.6)',
+      headerShadow: '0 42px 70px rgba(8, 12, 32, 0.6)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(30, 58, 138, 0.95), rgba(17, 45, 105, 0.9))',
+      headerFrameBorder: '1px solid rgba(147, 197, 253, 0.6)',
+      headerFrameShadow: '0 24px 34px rgba(10, 18, 48, 0.5)',
+      tabBg: 'linear-gradient(140deg, rgba(191, 219, 254, 0.92), rgba(147, 197, 253, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #ef4444, #3b82f6)',
+      buttonBg: 'linear-gradient(140deg, rgba(219, 234, 254, 0.92), rgba(191, 219, 254, 0.88))',
+      buttonBorder: '1px solid rgba(147, 197, 253, 0.55)',
+      glassSheen: '0 20px 38px rgba(17, 45, 105, 0.32)',
+      borderSoft: 'rgba(147, 197, 253, 0.46)',
+      chipBg: 'rgba(248, 113, 113, 0.26)',
+      chipBorder: '1px solid rgba(248, 113, 113, 0.4)',
+      linkColor: '#3b82f6',
+      accent: '#ef4444',
+      saveGradient: 'linear-gradient(125deg, #ef4444, #3b82f6)',
+      saveBorder: '1px solid rgba(59, 130, 246, 0.58)',
+      saveShadow: '0 26px 40px rgba(12, 24, 54, 0.48)',
+    }),
+  },
+  {
+    key: 'independence-rally',
+    label: 'Independence Day Rally',
+    description: 'Bold banners, eagle crests, and midnight navy columns.',
+    uiKey: 'independence-rally',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Cinzel", "Times New Roman", serif',
+      fontSizePx: 24,
+      fontColor: '#162032',
+      textBgColor: '#f8fafc',
+      textBgOpacity: 0.8,
+      screenBgColor: '#dbeafe',
+      screenBgOpacity: 0.52,
+      screenBgImage: 'https://images.unsplash.com/photo-1465446751832-9f11e546b4d2?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(30, 41, 59, 0.96), rgba(17, 24, 39, 0.9))',
+      headerBorder: '1px solid rgba(59, 130, 246, 0.6)',
+      headerShadow: '0 42px 72px rgba(12, 15, 25, 0.62)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(45, 55, 72, 0.95), rgba(23, 37, 65, 0.9))',
+      headerFrameBorder: '1px solid rgba(96, 165, 250, 0.6)',
+      headerFrameShadow: '0 24px 36px rgba(14, 18, 34, 0.52)',
+      tabBg: 'linear-gradient(140deg, rgba(226, 232, 240, 0.92), rgba(203, 213, 225, 0.9))',
+      tabActiveBg: 'linear-gradient(145deg, #1d4ed8, #f43f5e)',
+      buttonBg: 'linear-gradient(140deg, rgba(226, 232, 240, 0.92), rgba(203, 213, 225, 0.88))',
+      buttonBorder: '1px solid rgba(100, 116, 139, 0.5)',
+      glassSheen: '0 20px 36px rgba(17, 24, 39, 0.32)',
+      borderSoft: 'rgba(100, 116, 139, 0.44)',
+      chipBg: 'rgba(248, 113, 113, 0.24)',
+      chipBorder: '1px solid rgba(248, 113, 113, 0.38)',
+      linkColor: '#1d4ed8',
+      accent: '#f43f5e',
+      saveGradient: 'linear-gradient(125deg, #1d4ed8, #f43f5e)',
+      saveBorder: '1px solid rgba(59, 130, 246, 0.58)',
+      saveShadow: '0 26px 40px rgba(12, 20, 36, 0.46)',
+    }),
+  },
+  {
+    key: 'valentines-heartbeat',
+    label: 'Valentine Heartbeat',
+    description: 'Rose quartz curtains, neon hearts, and satin ribbon trims.',
+    uiKey: 'valentines-heartbeat',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Lobster", "Segoe UI", cursive',
+      fontSizePx: 26,
+      fontColor: '#3b0b25',
+      textBgColor: '#ffe4ef',
+      textBgOpacity: 0.82,
+      screenBgColor: '#fecdd3',
+      screenBgOpacity: 0.62,
+      screenBgImage: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(190, 24, 93, 0.95), rgba(131, 24, 67, 0.9))',
+      headerBorder: '1px solid rgba(244, 114, 182, 0.58)',
+      headerShadow: '0 40px 68px rgba(76, 8, 34, 0.46)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(221, 65, 135, 0.94), rgba(173, 36, 103, 0.9))',
+      headerFrameBorder: '1px solid rgba(249, 168, 212, 0.6)',
+      headerFrameShadow: '0 24px 34px rgba(92, 12, 42, 0.4)',
+      tabBg: 'linear-gradient(140deg, rgba(253, 223, 241, 0.92), rgba(251, 191, 213, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #ec4899, #f87171)',
+      buttonBg: 'linear-gradient(140deg, rgba(252, 214, 232, 0.92), rgba(251, 191, 213, 0.88))',
+      buttonBorder: '1px solid rgba(244, 114, 182, 0.5)',
+      glassSheen: '0 20px 34px rgba(190, 24, 93, 0.3)',
+      borderSoft: 'rgba(244, 114, 182, 0.42)',
+      chipBg: 'rgba(254, 205, 211, 0.32)',
+      chipBorder: '1px solid rgba(244, 114, 182, 0.44)',
+      linkColor: '#db2777',
+      accent: '#f87171',
+      saveGradient: 'linear-gradient(125deg, #ec4899, #f87171)',
+      saveBorder: '1px solid rgba(244, 114, 182, 0.6)',
+      saveShadow: '0 24px 36px rgba(131, 24, 67, 0.36)',
+    }),
+  },
+  {
+    key: 'mothers-day-bouquet',
+    label: "Mother's Day Bouquet",
+    description: 'Peony arrangements, lace ribbons, and soft watercolor glass.',
+    uiKey: 'mothers-day-bouquet',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Playfair Display", "Times New Roman", serif',
+      fontSizePx: 24,
+      fontColor: '#331f2c',
+      textBgColor: '#fff4f8',
+      textBgOpacity: 0.82,
+      screenBgColor: '#fde2f4',
+      screenBgOpacity: 0.56,
+      screenBgImage: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(236, 72, 153, 0.9), rgba(236, 114, 181, 0.86))',
+      headerBorder: '1px solid rgba(249, 168, 212, 0.6)',
+      headerShadow: '0 36px 60px rgba(122, 31, 79, 0.38)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(236, 114, 181, 0.9), rgba(244, 172, 202, 0.86))',
+      headerFrameBorder: '1px solid rgba(252, 231, 243, 0.62)',
+      headerFrameShadow: '0 22px 32px rgba(132, 40, 88, 0.36)',
+      tabBg: 'linear-gradient(140deg, rgba(254, 226, 226, 0.92), rgba(252, 231, 243, 0.9))',
+      tabActiveBg: 'linear-gradient(145deg, #ec4899, #f472b6)',
+      buttonBg: 'linear-gradient(140deg, rgba(254, 226, 226, 0.92), rgba(252, 231, 243, 0.88))',
+      buttonBorder: '1px solid rgba(244, 172, 202, 0.5)',
+      glassSheen: '0 18px 32px rgba(180, 51, 106, 0.28)',
+      borderSoft: 'rgba(244, 172, 202, 0.44)',
+      chipBg: 'rgba(252, 231, 243, 0.32)',
+      chipBorder: '1px solid rgba(244, 172, 202, 0.44)',
+      linkColor: '#db2777',
+      accent: '#f472b6',
+      saveGradient: 'linear-gradient(125deg, #ec4899, #f472b6)',
+      saveBorder: '1px solid rgba(244, 172, 202, 0.58)',
+      saveShadow: '0 22px 32px rgba(132, 40, 88, 0.32)',
+    }),
+  },
+  {
+    key: 'fathers-day-forge',
+    label: "Father's Day Forge",
+    description: 'Steel workshop benches, blueprint grids, and tungsten accents.',
+    uiKey: 'fathers-day-forge',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Work Sans", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#0f172a',
+      textBgColor: '#e2e8f0',
+      textBgOpacity: 0.8,
+      screenBgColor: '#cbd5e1',
+      screenBgOpacity: 0.54,
+      screenBgImage: 'https://images.unsplash.com/photo-1516822271333-2e1c45221a13?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.9))',
+      headerBorder: '1px solid rgba(148, 163, 184, 0.58)',
+      headerShadow: '0 38px 64px rgba(7, 11, 20, 0.46)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(45, 55, 72, 0.94), rgba(23, 37, 64, 0.9))',
+      headerFrameBorder: '1px solid rgba(191, 219, 254, 0.52)',
+      headerFrameShadow: '0 22px 32px rgba(12, 18, 32, 0.4)',
+      tabBg: 'linear-gradient(140deg, rgba(226, 232, 240, 0.9), rgba(203, 213, 225, 0.86))',
+      tabActiveBg: 'linear-gradient(145deg, #2563eb, #0ea5e9)',
+      buttonBg: 'linear-gradient(140deg, rgba(226, 232, 240, 0.9), rgba(203, 213, 225, 0.86))',
+      buttonBorder: '1px solid rgba(148, 163, 184, 0.5)',
+      glassSheen: '0 18px 30px rgba(15, 23, 42, 0.28)',
+      borderSoft: 'rgba(148, 163, 184, 0.44)',
+      chipBg: 'rgba(191, 219, 254, 0.28)',
+      chipBorder: '1px solid rgba(148, 163, 184, 0.44)',
+      linkColor: '#1d4ed8',
+      accent: '#0ea5e9',
+      saveGradient: 'linear-gradient(125deg, #2563eb, #0ea5e9)',
+      saveBorder: '1px solid rgba(59, 130, 246, 0.55)',
+      saveShadow: '0 22px 32px rgba(12, 20, 38, 0.34)',
+    }),
+  },
+  {
+    key: 'warfront-briefing',
+    label: 'Warfront Briefing',
+    description: 'Forward operating command with tactical amber overlays.',
+    uiKey: 'warfront-briefing',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Black Ops One", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#f1f5f9',
+      textBgColor: '#0f172a',
+      textBgOpacity: 0.62,
+      screenBgColor: '#0b1524',
+      screenBgOpacity: 0.68,
+      screenBgImage: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 16, 0.9))',
+      headerBorder: '1px solid rgba(148, 197, 255, 0.5)',
+      headerShadow: '0 44px 78px rgba(1, 3, 8, 0.62)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(26, 36, 56, 0.94), rgba(10, 16, 28, 0.9))',
+      headerFrameBorder: '1px solid rgba(203, 213, 225, 0.5)',
+      headerFrameShadow: '0 26px 38px rgba(4, 8, 16, 0.55)',
+      tabBg: 'linear-gradient(140deg, rgba(30, 41, 59, 0.92), rgba(17, 24, 39, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #22d3ee, #facc15)',
+      buttonBg: 'linear-gradient(140deg, rgba(28, 36, 52, 0.94), rgba(14, 20, 32, 0.9))',
+      buttonBorder: '1px solid rgba(59, 130, 246, 0.5)',
+      glassSheen: '0 22px 40px rgba(4, 8, 16, 0.55)',
+      borderSoft: 'rgba(59, 130, 246, 0.4)',
+      chipBg: 'rgba(250, 204, 21, 0.3)',
+      chipBorder: '1px solid rgba(250, 204, 21, 0.46)',
+      linkColor: '#0ea5e9',
+      accent: '#facc15',
+      saveGradient: 'linear-gradient(130deg, #0ea5e9, #facc15)',
+      saveBorder: '1px solid rgba(59, 130, 246, 0.55)',
+      saveShadow: '0 28px 44px rgba(3, 6, 12, 0.54)',
+    }),
+  },
+  {
+    key: 'military-camouflage',
+    label: 'Camouflage Command',
+    description: 'Adaptive woodland camo HUD with luminous targeting glass.',
+    uiKey: 'military-camouflage',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Rajdhani", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#f8fafc',
+      textBgColor: '#0f172a',
+      textBgOpacity: 0.6,
+      screenBgColor: '#122418',
+      screenBgOpacity: 0.64,
+      screenBgImage: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(18, 44, 28, 0.95), rgba(10, 28, 16, 0.9))',
+      headerBorder: '1px solid rgba(74, 222, 128, 0.5)',
+      headerShadow: '0 40px 70px rgba(4, 12, 8, 0.58)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(28, 64, 38, 0.94), rgba(14, 34, 22, 0.9))',
+      headerFrameBorder: '1px solid rgba(110, 231, 183, 0.5)',
+      headerFrameShadow: '0 24px 36px rgba(6, 18, 12, 0.48)',
+      tabBg: 'linear-gradient(140deg, rgba(12, 38, 22, 0.9), rgba(6, 24, 14, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #22c55e, #a3e635)',
+      buttonBg: 'linear-gradient(140deg, rgba(12, 38, 22, 0.92), rgba(6, 24, 14, 0.9))',
+      buttonBorder: '1px solid rgba(94, 234, 162, 0.46)',
+      glassSheen: '0 20px 36px rgba(6, 16, 10, 0.42)',
+      borderSoft: 'rgba(94, 234, 162, 0.36)',
+      chipBg: 'rgba(132, 204, 22, 0.28)',
+      chipBorder: '1px solid rgba(132, 204, 22, 0.44)',
+      linkColor: '#22c55e',
+      accent: '#a3e635',
+      saveGradient: 'linear-gradient(125deg, #22c55e, #a3e635)',
+      saveBorder: '1px solid rgba(132, 204, 22, 0.5)',
+      saveShadow: '0 24px 38px rgba(4, 12, 8, 0.46)',
+    }),
+  },
+  {
+    key: 'nature-woodland',
+    label: 'Whispering Woods',
+    description: 'Sun-dappled path, moss greens, and cedar plank panels.',
+    uiKey: 'nature-woodland',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Merriweather Sans", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#1c3220',
+      textBgColor: '#ecfdf5',
+      textBgOpacity: 0.78,
+      screenBgColor: '#cdeccd',
+      screenBgOpacity: 0.54,
+      screenBgImage: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(22, 82, 52, 0.94), rgba(16, 56, 32, 0.9))',
+      headerBorder: '1px solid rgba(74, 222, 128, 0.55)',
+      headerShadow: '0 36px 62px rgba(12, 42, 24, 0.42)',
+      headerFrameBg: 'linear-gradient(150deg, rgba(30, 96, 60, 0.94), rgba(20, 64, 36, 0.88))',
+      headerFrameBorder: '1px solid rgba(110, 231, 183, 0.55)',
+      headerFrameShadow: '0 22px 32px rgba(16, 52, 28, 0.38)',
+      tabBg: 'linear-gradient(135deg, rgba(204, 232, 214, 0.9), rgba(178, 222, 192, 0.86))',
+      tabActiveBg: 'linear-gradient(140deg, #22c55e, #4ade80)',
+      buttonBg: 'linear-gradient(135deg, rgba(210, 236, 220, 0.92), rgba(182, 226, 196, 0.88))',
+      buttonBorder: '1px solid rgba(74, 222, 128, 0.5)',
+      glassSheen: '0 18px 30px rgba(20, 72, 40, 0.28)',
+      borderSoft: 'rgba(74, 222, 128, 0.4)',
+      chipBg: 'rgba(134, 239, 172, 0.26)',
+      chipBorder: '1px solid rgba(74, 222, 128, 0.42)',
+      linkColor: '#15803d',
+      accent: '#22c55e',
+      saveGradient: 'linear-gradient(125deg, #22c55e, #4ade80)',
+      saveBorder: '1px solid rgba(74, 222, 128, 0.5)',
+      saveShadow: '0 20px 30px rgba(20, 72, 40, 0.28)',
+    }),
+  },
+  {
+    key: 'nature-emerald-canopy',
+    label: 'Emerald Canopy',
+    description: 'Rain-kissed fern canopy with jade mist and golden fireflies.',
+    uiKey: 'nature-emerald-canopy',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Source Sans Pro", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#0f2f1c',
+      textBgColor: '#ecfdf5',
+      textBgOpacity: 0.76,
+      screenBgColor: '#c5f2d5',
+      screenBgOpacity: 0.58,
+      screenBgImage: 'https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(16, 68, 48, 0.94), rgba(12, 48, 32, 0.9))',
+      headerBorder: '1px solid rgba(52, 211, 153, 0.55)',
+      headerShadow: '0 38px 64px rgba(6, 28, 18, 0.42)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(22, 84, 56, 0.94), rgba(16, 60, 40, 0.9))',
+      headerFrameBorder: '1px solid rgba(74, 222, 128, 0.55)',
+      headerFrameShadow: '0 22px 32px rgba(10, 36, 24, 0.36)',
+      tabBg: 'linear-gradient(140deg, rgba(204, 252, 229, 0.92), rgba(178, 242, 210, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #22c55e, #86efac)',
+      buttonBg: 'linear-gradient(140deg, rgba(204, 252, 229, 0.92), rgba(178, 242, 210, 0.88))',
+      buttonBorder: '1px solid rgba(52, 211, 153, 0.5)',
+      glassSheen: '0 18px 32px rgba(12, 48, 32, 0.28)',
+      borderSoft: 'rgba(52, 211, 153, 0.4)',
+      chipBg: 'rgba(132, 225, 188, 0.28)',
+      chipBorder: '1px solid rgba(52, 211, 153, 0.44)',
+      linkColor: '#16a34a',
+      accent: '#22c55e',
+      saveGradient: 'linear-gradient(125deg, #22c55e, #86efac)',
+      saveBorder: '1px solid rgba(74, 222, 128, 0.5)',
+      saveShadow: '0 20px 30px rgba(12, 48, 32, 0.28)',
+    }),
+  },
+  {
+    key: 'lucky-clover-field',
+    label: 'Lucky Clover Field',
+    description: 'Four-leaf clover meadow with gold dust sparks and emerald fog.',
+    uiKey: 'lucky-clover-field',
+    appearance: {
+      ...defaultAppearance(),
+      fontFamily: '"Quicksand", "Segoe UI", sans-serif',
+      fontSizePx: 24,
+      fontColor: '#052e16',
+      textBgColor: '#ecfdf5',
+      textBgOpacity: 0.78,
+      screenBgColor: '#c7f9cc',
+      screenBgOpacity: 0.58,
+      screenBgImage: 'https://images.unsplash.com/photo-1455656678494-4d1b5f3e7ad4?auto=format&fit=crop&w=1600&q=80',
+      screenBgImageEnabled: true,
+      textAlign: 'center',
+      textVertical: 'top',
+    },
+    ui: createUiTheme({
+      headerBg: 'linear-gradient(150deg, rgba(12, 84, 48, 0.94), rgba(8, 56, 32, 0.9))',
+      headerBorder: '1px solid rgba(110, 231, 183, 0.55)',
+      headerShadow: '0 36px 60px rgba(6, 32, 18, 0.42)',
+      headerFrameBg: 'linear-gradient(155deg, rgba(18, 100, 60, 0.94), rgba(10, 68, 40, 0.9))',
+      headerFrameBorder: '1px solid rgba(134, 239, 172, 0.55)',
+      headerFrameShadow: '0 22px 32px rgba(8, 40, 22, 0.36)',
+      tabBg: 'linear-gradient(140deg, rgba(204, 252, 229, 0.92), rgba(178, 242, 210, 0.88))',
+      tabActiveBg: 'linear-gradient(145deg, #22c55e, #bbf7d0)',
+      buttonBg: 'linear-gradient(140deg, rgba(204, 252, 229, 0.92), rgba(178, 242, 210, 0.88))',
+      buttonBorder: '1px solid rgba(110, 231, 183, 0.5)',
+      glassSheen: '0 18px 30px rgba(8, 40, 22, 0.28)',
+      borderSoft: 'rgba(110, 231, 183, 0.44)',
+      chipBg: 'rgba(187, 247, 208, 0.28)',
+      chipBorder: '1px solid rgba(110, 231, 183, 0.44)',
+      linkColor: '#15803d',
+      accent: '#22c55e',
+      saveGradient: 'linear-gradient(125deg, #22c55e, #bbf7d0)',
+      saveBorder: '1px solid rgba(134, 239, 172, 0.5)',
+      saveShadow: '0 20px 30px rgba(8, 40, 22, 0.28)',
     }),
   },
 ];
@@ -1782,6 +2447,7 @@ export default function Admin() {
   useEffect(() => {
     setGameFlagsError('');
     setGameFlagsBusy(false);
+    setLastGlobalLocation(null);
   }, [activeSlug]);
 
   useEffect(() => {
@@ -1803,6 +2469,7 @@ export default function Admin() {
   const [config, setConfig] = useState(null);
   const [status, setStatusInternal] = useState('');
   const [statusLog, setStatusLog] = useState([]);
+  const [lastGlobalLocation, setLastGlobalLocation] = useState(null);
 
   const [missionActionFlash, setMissionActionFlash] = useState(false);
   const [deviceActionFlash, setDeviceActionFlash] = useState(false);
@@ -2782,8 +3449,23 @@ export default function Admin() {
     };
   }
   function getPreferredLocation() {
+    if (
+      lastGlobalLocation &&
+      Number.isFinite(lastGlobalLocation.lat) &&
+      Number.isFinite(lastGlobalLocation.lng)
+    ) {
+      return lastGlobalLocation;
+    }
     let stored = null;
     try { stored = getDefaultGeo(); } catch {}
+    const metaLocation = activeGameMeta?.settings?.globalLocation;
+    if (
+      metaLocation &&
+      Number.isFinite(Number(metaLocation.lat)) &&
+      Number.isFinite(Number(metaLocation.lng))
+    ) {
+      return { lat: Number(metaLocation.lat), lng: Number(metaLocation.lng) };
+    }
     const fallbackLat = config?.map?.centerLat;
     const fallbackLng = config?.map?.centerLng;
     const latCandidate = stored?.lat ?? fallbackLat ?? 44.9778;
@@ -2835,6 +3517,10 @@ export default function Admin() {
       config: preparedConfig,
       missions: suite?.missions || [],
       devices: getDevices(),
+      transferTags: normalizedChannel === 'published'
+        ? ['supabase-transfer', 'game-repo-transfer']
+        : ['supabase-transfer'],
+      savedAt: new Date().toISOString(),
     };
 
     const attemptSupabase = async () => {
@@ -3114,6 +3800,7 @@ export default function Admin() {
           setSuite(mutated.data.suite);
         }
         await saveGameFlags({ globalLocation: { lat, lng } });
+        setLastGlobalLocation({ lat, lng });
         setStatus('✅ Updated all pins to new location');
         logConversation('GPT', `All pins updated to ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
       } catch (error) {
@@ -3139,39 +3826,77 @@ export default function Admin() {
         const snapshot = await getSnapshotFor(slug);
         if (!snapshot) throw new Error('Snapshot unavailable');
 
-        let handled = false;
-        try {
-          if (typeof window !== 'undefined' && window.__ERIX__?.saveFullGame) {
-            await window.__ERIX__.saveFullGame({ slug, publish, snapshot });
-            handled = true;
-          }
-        } catch (bridgeError) {
-          console.warn('saveFullGame bridge failed', bridgeError);
-        }
+        const transferTags = publish
+          ? ['supabase-transfer', 'game-repo-transfer']
+          : ['local-update'];
+        const snapshotWithTags = {
+          ...snapshot,
+          meta: {
+            ...(snapshot.meta || {}),
+            transferTags,
+            savedAt: new Date().toISOString(),
+            savedBy: 'admin-dashboard',
+          },
+        };
 
-        if (!handled) {
-          const endpoint = publish ? '/api/games/save-and-publish' : '/api/games/save-full';
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              slug,
-              channel: publish ? 'published' : headerStatus,
-              snapshot,
-            }),
-          });
-          if (!response.ok) {
-            const text = await response.text();
-            throw new Error(text || 'Save request failed');
+        if (publish) {
+          let handled = false;
+          try {
+            if (typeof window !== 'undefined' && window.__ERIX__?.saveFullGame) {
+              await window.__ERIX__.saveFullGame({ slug, publish, snapshot: snapshotWithTags });
+              handled = true;
+            }
+          } catch (bridgeError) {
+            console.warn('saveFullGame bridge failed', bridgeError);
           }
-        }
 
-        setStatus(publish ? '✅ Snapshot saved & published' : '✅ Snapshot updated');
-        logConversation('GPT', publish ? `Saved and published ${slug}` : `Snapshot updated for ${slug}`);
-        await reloadGamesList();
-        await refreshGamesIndex();
-        if (publish) setPreviewNonce((n) => n + 1);
+          if (!handled) {
+            const response = await fetch('/api/games/save-and-publish', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                slug,
+                channel: 'published',
+                snapshot: snapshotWithTags,
+              }),
+            });
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(text || 'Save request failed');
+            }
+          }
+
+          removeLocalSnapshot(slug, 'draft');
+          removeLocalSnapshot(slug, 'published');
+          setStatus('✅ Snapshot saved & published');
+          logConversation('GPT', `Saved and published ${slug}`);
+          await reloadGamesList();
+          await refreshGamesIndex();
+          setPreviewNonce((n) => n + 1);
+        } else {
+          let handled = false;
+          try {
+            if (typeof window !== 'undefined' && window.__ERIX__?.saveLocalGame) {
+              await window.__ERIX__.saveLocalGame({
+                slug,
+                snapshot: snapshotWithTags,
+                channel: headerStatus,
+              });
+              handled = true;
+            }
+          } catch (bridgeError) {
+            console.warn('saveLocalGame bridge failed', bridgeError);
+          }
+
+          if (!handled) {
+            persistLocalSnapshot(slug, headerStatus, snapshotWithTags);
+          }
+
+          setStatus('✅ Snapshot saved locally (Supabase untouched)');
+          logConversation('GPT', `Local snapshot stored for ${slug} (${headerStatus})`);
+          await refreshGamesIndex();
+        }
       } catch (error) {
         const message = error?.message || 'snapshot save failed';
         setStatus(`❌ ${intentLabel} failed: ${message}`);
@@ -4161,6 +4886,13 @@ export default function Admin() {
   const viewSuite = suite || fallbackSuite;
   const viewConfig = config || fallbackConfig;
   const globalLocationSeed = useMemo(() => {
+    if (
+      lastGlobalLocation &&
+      Number.isFinite(lastGlobalLocation.lat) &&
+      Number.isFinite(lastGlobalLocation.lng)
+    ) {
+      return lastGlobalLocation;
+    }
     const storedSetting = activeGameMeta?.settings?.globalLocation;
     if (storedSetting) {
       const lat = Number(storedSetting.lat);
@@ -4178,7 +4910,7 @@ export default function Admin() {
       }
     } catch {}
     return null;
-  }, [activeGameMeta?.settings?.globalLocation, viewConfig]);
+  }, [activeGameMeta?.settings?.globalLocation, lastGlobalLocation, viewConfig]);
   const isBootstrapping = !suite || !config;
 
   const mapCenter = {
