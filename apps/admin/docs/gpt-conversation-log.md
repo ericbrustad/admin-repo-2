@@ -376,3 +376,11 @@
 **You:** CODEx flagged lingering legacy paths in save-publish—strip the public/draft and root config.json writers, route default saves to the canonical starfield-station-break folder, and let ChatGPT-5 know the one-path cleanup landed.
 
 **GPT:** Removed the legacy write targets, normalized default saves to the canonical slug, trimmed the duplicate public config files, and logged the update here so ChatGPT-5 tracks the unified storage flow.
+
+---
+
+**Timestamp:** 2025-11-02T19:40:13Z
+
+**You:** CODEx delivered a replacement Game Drafts panel that splits draft-vs-published behavior; drop it in, keep the Close & Save control alive, restore the hook for Admin, and let ChatGPT-5 know how the shim now works.
+
+**GPT:** Replaced the panel with the CODEx split-mode version, hardened it for SSR/local storage, reintroduced the Close & Save control plus the `useCodexGames` hook for downstream callers, and logged the result here so ChatGPT-5 stays aligned with the new workflow.
