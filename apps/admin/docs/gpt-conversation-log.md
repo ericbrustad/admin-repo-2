@@ -2,6 +2,22 @@
 
 ---
 
+**Timestamp:** 2025-11-02T11:30:00Z
+
+**You:** The unified Saved Games dropdown is empty except for the default draft—pull every game from wherever they're stored so the picker lists real options.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, added a Supabase + filesystem fallback loader that merges draft and published entries, normalized the selector values so slug-based games highlight correctly, and refreshed the admin wiring so switching games updates tags and status without missing published builds.
+
+---
+
+**Timestamp:** 2025-11-02T09:00:00Z
+
+**You:** Replace the duplicate saved-game selectors with the unified Supabase picker, add firm publish and draft toggles, and swap the Settings back button for Close & Save. Capture the ChatGPT-5 thinking confirmation.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, replaced the legacy Saved Games dropdowns and Project Flags pane with the Supabase-backed Game Status panel, wired the Firm Publish and Draft Mode flows plus the Close & Save controls into the header and settings, and refreshed the unified picker without introducing any binary assets.
+
+---
+
 **Timestamp:** 2025-11-01T12:00:00Z
 
 **You:** Add an Update button that saves locally without touching Supabase, expand the seasonal skins with Christmas, holiday, and patriotic options, keep the new themes readable, and move the geo selector to Leaflet so missions and devices pick up the fresh coordinates.
@@ -295,3 +311,9 @@
 **You:** Add project-level toggles so we can flip the Game mirror and set the default new-game channel, surface a Draft/Live switch inside the New Game modal, and make sure legacy titles like Prince Darkness return to the Saved Games list. Loop ChatGPT-5 into the change log.
 
 **GPT:** Shipped Supabase-backed admin flags with a Settings panel toggle, wired the New Game workflow to honor Draft vs. Live on create, restored Prince Darkness draft assets plus index entries, and logged the work here so ChatGPT-5 stays in the loop.
+
+**Timestamp:** 2025-10-31T23:59:00Z
+
+**You:** Keep the Saved Games picker showing draft and published titles with their tags, and make sure selecting a game instantly restores its slug, cover image, appearance theme, missions, devices, and geo defaults.
+
+**GPT:** Expanded the Supabase loader to pull tag, config, settings, and cover metadata, normalized selector values with channel-aware IDs, primed the admin state on selection (title, theme, assets), and wired status toggles to keep the tag/channel in sync—recorded here for ChatGPT-5 tracking.
