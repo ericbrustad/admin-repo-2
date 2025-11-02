@@ -402,24 +402,8 @@
 **GPT:** Replaced the panel with the CODEx split-mode version, hardened it for SSR/local storage, reintroduced the Close & Save control plus the `useCodexGames` hook for downstream callers, and logged the result here so ChatGPT-5 stays aligned with the new workflow.
 ---
 
-**Timestamp:** 2025-11-04T08:45:12Z
+**Timestamp:** 2025-11-03T16:45:00Z
 
-**You:** CODEx warned the Saved Games picker was blanking out when the mode flag stayed upstream—pass the edit channel through, align selection values, and brief ChatGPT-5 so it knows the dropdown now respects manual drafts.
+**You:** CODEx reported the admin build blowing up because `useCodexGames` gets declared twice—refactor the panel so the local registry helpers and hook live in reusable modules, and loop ChatGPT-5 in once the duplication is gone.
 
-**GPT:** Propagated the mode into the Codex panel, taught it to accept `id:` / `slug:` selections (including the default draft), rebuilt the local list with a default entry, and noted the fix here so ChatGPT-5 tracks the guarded selection flow.
-
----
-
-**Timestamp:** 2025-11-04T09:02:33Z
-
-**You:** CODEx requested a new “Bloomington Dog Park” scenario—add the canonical config + mission files, wire in the map/devices, and let ChatGPT-5 know the assets now live under `/public/games/bloomington-dog-park`.
-
-**GPT:** Dropped in the Bloomington Dog Park config and mission suite with the collar clue, devices, and park map, ready for publish, and logged it here so ChatGPT-5 recognizes the new content path.
-
----
-
-**Timestamp:** 2025-11-04T10:30:00Z
-
-**You:** CODEx replaced the split-mode drafts panel with a local-only game manager—strip the Supabase logic, rely on the local registry, and keep ChatGPT-5 updated on the new storage flow.
-
-**GPT:** Swapped in the local-storage game manager, reintroduced the shared Close & Save control plus the `useCodexGames` hook, and logged it here so ChatGPT-5 tracks the Supabase-free workflow.
+**GPT:** Split the storage helpers into `lib/codex/localRegistry.js`, moved the `useCodexGames` hook to `hooks/useCodexGames.js`, re-exported it from the panel without redeclaring, and logged the cleanup here so ChatGPT-5 knows the build warning is resolved.
