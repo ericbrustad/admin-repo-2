@@ -30,6 +30,16 @@
     "createdAt": "2024-10-08T08:10:00.000Z"
   },
   {
+    "slug": "bloomington-dog-park",
+    "title": "Bloomington Dog Park",
+    "type": "Exploration",
+    "mode": "single",
+    "coverImage": "/media/covers/bloomington-dog-park.jpg",
+    "shortDescription": "Track the missing collar and steady every sensor around the Bloomington dog park.",
+    "channel": "draft",
+    "createdAt": "2024-11-05T15:00:00.000Z"
+  },
+  {
     "slug": "secret-agent-paws",
     "title": "Secret Agent PAWS",
     "type": "Mystery",
