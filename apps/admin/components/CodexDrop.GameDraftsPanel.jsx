@@ -59,6 +59,56 @@ function deleteLocalDraft(game) {
   } catch {}
 }
 
+function buildDefaultGame() {
+  return {
+    id: null,
+    slug: 'default',
+    title: STARFIELD_DEFAULT,
+    channel: 'draft',
+    tag: 'draft',
+    api_active: false,
+    source: 'local-default',
+  };
+}
+
+function canonicalSelectionValue(game) {
+  if (!game) return '';
+  const resolvedChannel = game.channel === 'published' || game.tag === 'published' ? 'published' : 'draft';
+  if (game.slug === 'default' && game.id == null) return 'default::draft';
+  if (game.id != null) return `id:${game.id}::${resolvedChannel}`;
+  if (game.slug) return `slug:${game.slug}::${resolvedChannel}`;
+  return '';
+}
+
+function parseSelectionValue(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return { key: '', type: 'unknown' };
+  if (raw === 'default::draft' || raw === 'default') {
+    return { key: 'default::draft', type: 'default', slug: 'default', channel: 'draft' };
+  }
+  if (raw.startsWith('id:')) {
+    const [, rest] = raw.split('id:');
+    const [idValue, channelValue] = (rest || '').split('::');
+    return {
+      key: raw,
+      type: 'id',
+      id: idValue || '',
+      channel: channelValue === 'published' ? 'published' : 'draft',
+    };
+  }
+  if (raw.startsWith('slug:')) {
+    const payload = raw.slice(5);
+    const [slugValue, channelValue] = payload.split('::');
+    return {
+      key: raw,
+      type: 'slug',
+      slug: (slugValue || '').trim(),
+      channel: channelValue === 'published' ? 'published' : 'draft',
+    };
+  }
+  return { key: raw, type: 'legacy', slug: raw, channel: 'draft' };
+}
+
 // --- Component ---
 export default function CodexDropGameDraftsPanel({
   value,
@@ -110,7 +160,10 @@ export default function CodexDropGameDraftsPanel({
           }
         })
         .filter(Boolean);
-      setGames(localGames);
+      const withDefault = localGames.some((entry) => (entry?.slug || '') === 'default')
+        ? localGames
+        : [buildDefaultGame(), ...localGames];
+      setGames(withDefault);
       setBusy(false);
       return;
     }
@@ -143,10 +196,13 @@ export default function CodexDropGameDraftsPanel({
           source: 'supabase',
         };
       });
-      setGames(mapped);
+      const includeDefault = mapped.some((entry) => (entry?.slug || '') === 'default')
+        ? mapped
+        : [buildDefaultGame(), ...mapped];
+      setGames(includeDefault);
     } catch (fetchError) {
       setError(fetchError?.message || 'Failed to load games');
-      setGames([]);
+      setGames([buildDefaultGame()]);
     }
     setBusy(false);
   }, [isDraftMode]);
@@ -155,14 +211,32 @@ export default function CodexDropGameDraftsPanel({
 
   // --- when selection changes ---
   useEffect(() => {
-    const found = games.find((g) => String(g.id) === String(value) || g.slug === value);
-    setCurrent(found || null);
-    if (found) {
-      const draft = loadLocalDraft(found);
-      setTitle(draft?.title || found.title);
-      setSlug(draft?.slug || found.slug);
-      setChannel(found.channel || 'draft');
-      setPageTitle(draft?.title || found.title);
+    const parsed = parseSelectionValue(value);
+    let resolved = null;
+    if (parsed.type === 'default') {
+      resolved = buildDefaultGame();
+    } else if (parsed.type === 'id') {
+      resolved = games.find((g) => g.id != null && String(g.id) === String(parsed.id));
+    } else if (parsed.type === 'slug' || parsed.type === 'legacy') {
+      resolved = games.find((g) => (g.slug || '') === (parsed.slug || ''));
+      if (!resolved && parsed.slug === 'default') resolved = buildDefaultGame();
+    }
+    if (!resolved && games.length === 1 && games[0].slug === parsed.slug) {
+      resolved = games[0];
+    }
+    setCurrent(resolved || null);
+    if (resolved) {
+      const draft = loadLocalDraft(resolved);
+      const nextTitle = draft?.title || resolved.title || STARFIELD_DEFAULT;
+      const nextSlug = draft?.slug || resolved.slug || (resolved.id ? '' : 'default');
+      setTitle(nextTitle);
+      setSlug(nextSlug);
+      setChannel(resolved.channel || parsed.channel || 'draft');
+      setPageTitle(nextTitle);
+    } else {
+      setTitle('');
+      setSlug('');
+      setChannel(parsed.channel || 'draft');
     }
   }, [value, games]);
 
@@ -222,11 +296,19 @@ export default function CodexDropGameDraftsPanel({
 
   // --- UI ---
   const options = useMemo(() => {
-    return games.map((g) => ({
-      value: g.id ? String(g.id) : g.slug,
-      label: `${g.title} (${g.channel})`,
-    }));
+    return games.map((g) => {
+      const resolvedChannel = g.channel === 'published' ? 'published' : 'draft';
+      const optionValue = canonicalSelectionValue(g) || g.slug || '';
+      const label = `${g.title || g.slug || STARFIELD_DEFAULT} (${resolvedChannel})`;
+      return { value: optionValue, label };
+    });
   }, [games]);
+
+  const selectValue = useMemo(() => {
+    if (current) return canonicalSelectionValue(current);
+    const parsed = parseSelectionValue(value);
+    return parsed.key || '';
+  }, [current, value]);
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -234,14 +316,14 @@ export default function CodexDropGameDraftsPanel({
         <label style={{ fontWeight: 700 }}>Saved Games</label>
         <select
           disabled={busy}
-          value={(current?.id != null ? String(current.id) : '') || current?.slug || ''}
+          value={selectValue}
           onChange={(e) => {
             const raw = e.target.value;
-            const next = games.find((g) => {
-              if (g.id != null && String(g.id) === raw) return true;
-              return g.slug === raw;
-            }) || null;
-            onChange?.(raw, next);
+            const next = games.find((g) => canonicalSelectionValue(g) === raw)
+              || games.find((g) => (g.slug || '') === raw)
+              || (raw === 'default::draft' ? buildDefaultGame() : null);
+            const nextValue = canonicalSelectionValue(next) || raw;
+            onChange?.(nextValue, next);
           }}
           style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', minWidth: 260 }}
         >
