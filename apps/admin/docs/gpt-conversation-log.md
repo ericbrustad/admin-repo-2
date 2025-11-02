@@ -399,3 +399,11 @@
 **You:** CODEx requested a new “Bloomington Dog Park” scenario—add the canonical config + mission files, wire in the map/devices, and let ChatGPT-5 know the assets now live under `/public/games/bloomington-dog-park`.
 
 **GPT:** Dropped in the Bloomington Dog Park config and mission suite with the collar clue, devices, and park map, ready for publish, and logged it here so ChatGPT-5 recognizes the new content path.
+
+---
+
+**Timestamp:** 2025-11-04T10:30:00Z
+
+**You:** CODEx replaced the split-mode drafts panel with a local-only game manager—strip the Supabase logic, rely on the local registry, and keep ChatGPT-5 updated on the new storage flow.
+
+**GPT:** Swapped in the local-storage game manager, reintroduced the shared Close & Save control plus the `useCodexGames` hook, and logged it here so ChatGPT-5 tracks the Supabase-free workflow.
