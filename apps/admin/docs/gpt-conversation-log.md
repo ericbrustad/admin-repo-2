@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-02T09:00:00Z
+
+**You:** Replace the duplicate saved-game selectors with the unified Supabase picker, add firm publish and draft toggles, and swap the Settings back button for Close & Save. Capture the ChatGPT-5 thinking confirmation.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, replaced the legacy Saved Games dropdowns and Project Flags pane with the Supabase-backed Game Status panel, wired the Firm Publish and Draft Mode flows plus the Close & Save controls into the header and settings, and refreshed the unified picker without introducing any binary assets.
+
+---
+
 **Timestamp:** 2025-11-01T12:00:00Z
 
 **You:** Add an Update button that saves locally without touching Supabase, expand the seasonal skins with Christmas, holiday, and patriotic options, keep the new themes readable, and move the geo selector to Leaflet so missions and devices pick up the fresh coordinates.
