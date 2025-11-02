@@ -16,72 +16,32 @@ const supabase = createClient(
 );
 
 // --- tiny helpers ------------------------------------------------------------
-function normalizedTag(game) {
-  const rawTag = typeof game?.tag === 'string' ? game.tag.toLowerCase() : '';
-  const rawChannel = typeof game?.channel === 'string' ? game.channel.toLowerCase() : '';
-  return rawTag === 'published' || rawChannel === 'published' ? 'published' : 'draft';
-}
-
 function normalizeGame(game) {
   if (!game) return null;
-
-  const rawSlug = typeof game.slug === 'string' ? game.slug.trim() : '';
-  const configSlug = typeof game?.config?.game?.slug === 'string' ? game.config.game.slug.trim() : '';
-  const tag = normalizedTag(game);
-  const slug = rawSlug || configSlug || (tag === 'draft' ? 'default' : '');
-
-  const defaultChannelRaw = typeof game.default_channel === 'string' ? game.default_channel.toLowerCase() : '';
-  const default_channel = defaultChannelRaw === 'published' ? 'published' : 'draft';
-
-  const cover_image = game.cover_image
-    ?? game.coverImage
-    ?? (game.config && game.config.game ? game.config.game.coverImage : null);
-  const appearance_skin = game.appearance_skin ?? game.appearanceSkin ?? null;
-  const appearance_tone = game.appearance_tone ?? game.appearanceTone ?? null;
-  const config = game.config && typeof game.config === 'object' ? game.config : null;
-  const appearance = game.appearance && typeof game.appearance === 'object'
-    ? game.appearance
-    : config && typeof config.appearance === 'object'
-      ? config.appearance
-      : null;
-  const map = game.map && typeof game.map === 'object'
-    ? game.map
-    : config && typeof config.map === 'object'
-      ? config.map
-      : null;
-  const settings = game.settings && typeof game.settings === 'object' ? game.settings : {};
-  const api_active = typeof game.api_active === 'boolean' ? game.api_active : tag === 'published';
-
+  const channel = game.channel === 'published' ? 'published' : 'draft';
+  const slug = typeof game.slug === 'string' && game.slug.trim()
+    ? game.slug.trim()
+    : channel === 'draft'
+      ? 'default'
+      : '';
   return {
     id: game.id ?? null,
     slug,
-    title: game.title ?? config?.game?.title ?? (slug || 'Untitled'),
-    channel: tag,
-    tag,
-    default_channel,
-    api_active,
+    title: game.title ?? (slug || 'Untitled'),
+    channel,
+    api_active: game.api_active ?? (channel === 'published'),
     updated_at: game.updated_at ?? null,
     published_at: game.published_at ?? null,
-    cover_image,
-    coverImage: cover_image,
-    appearance_skin,
-    appearance_tone,
-    appearance,
-    map,
-    theme: game.theme && typeof game.theme === 'object' ? game.theme : null,
-    settings,
-    config,
     source: game.source || 'supabase',
-    game_enabled: typeof game.game_enabled === 'boolean' ? game.game_enabled : undefined,
   };
 }
 
 function deriveGameValue(game) {
   if (!game) return '';
   if (game.slug === 'default') return 'default::draft';
-  const channel = normalizedTag(game) === 'published' ? 'published' : 'draft';
-  if (game.id != null) return `id:${game.id}::${channel}`;
+  if (game.id != null) return `id:${game.id}`;
   if (game.slug) {
+    const channel = game.channel === 'published' ? 'published' : 'draft';
     return `slug:${game.slug}::${channel}`;
   }
   return '';
@@ -95,7 +55,6 @@ function ensureDefaultOption(list) {
     slug: 'default',
     title: 'Default Game',
     channel: 'draft',
-    tag: 'draft',
     api_active: false,
     source: 'virtual',
   };
@@ -104,7 +63,6 @@ function ensureDefaultOption(list) {
     label: 'Default Game (draft)',
     slug: 'default',
     channel: 'draft',
-    tag: 'draft',
     title: 'Default Game',
     game: defaultGame,
   };
@@ -144,11 +102,7 @@ export function useGames() {
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         const { data, error } = await supabase
           .from('games')
-          .select(`
-            id, slug, title, tag, channel, api_active, updated_at, published_at,
-            default_channel, game_enabled, cover_image, appearance_skin, appearance_tone,
-            settings, config, appearance, theme, map
-          `)
+          .select('id, slug, title, channel, api_active, updated_at, published_at')
           .in('channel', ['draft', 'published'])
           .order('updated_at', { ascending: false });
         if (error) supabaseError = error.message || 'Failed to load Supabase games';
@@ -169,8 +123,6 @@ export function useGames() {
           loaded = body.games.map((game) => normalizeGame({
             ...game,
             id: game.id ?? null,
-            tag: game.channel,
-            cover_image: game.coverImage ?? game.cover_image,
             api_active: game.channel === 'published',
             source: 'filesystem',
           })).filter(Boolean);
@@ -201,21 +153,20 @@ export function UnifiedGameSelector({ currentGameId, onSelect }) {
   const options = useMemo(() => {
     const seen = new Set();
     const base = games.map((g) => {
-      const channel = normalizedTag(g);
+      const channel = g.channel === 'published' ? 'published' : 'draft';
       const value = deriveGameValue(g);
       const slug = g.slug || (channel === 'draft' ? 'default' : '');
       const label = `${g.title ?? slug ?? 'Untitled'}${channel === 'published' ? ' (published)' : ' (draft)'}`;
       const dedupeKey = `${slug}::${channel}`;
-      if (seen.has(dedupeKey) && !(value || '').startsWith('id:')) return null;
+      if (seen.has(dedupeKey) && !value.startsWith('id:')) return null;
       seen.add(dedupeKey);
       return {
         value: value || dedupeKey,
         label,
         slug,
         channel,
-        tag: channel,
         id: g.id ?? null,
-        game: { ...g, slug, channel, tag: channel },
+        game: { ...g, slug, channel },
       };
     }).filter(Boolean);
     return ensureDefaultOption(base);
@@ -274,14 +225,14 @@ export function UnifiedGameSelector({ currentGameId, onSelect }) {
 async function setDraftMode(gameId) {
   // ⬇️ If your column names differ, change them here
   return supabase.from('games')
-    .update({ api_active: false, channel: 'draft', tag: 'draft', published_at: null })
+    .update({ api_active: false, channel: 'draft' })
     .eq('id', gameId);
 }
 
-async function setLiveMode(gameId, publishedAt = new Date().toISOString()) {
+async function setLiveMode(gameId) {
   // ⬇️ If your column names differ, change them here
   return supabase.from('games')
-    .update({ api_active: true, channel: 'published', tag: 'published', published_at: publishedAt })
+    .update({ api_active: true, channel: 'published', published_at: new Date().toISOString() })
     .eq('id', gameId);
 }
 
@@ -300,19 +251,11 @@ export function FirmPublishButton({ game, onAfter }) {
     );
     if (!ok) return;
     setBusy(true);
-    const publishedAt = new Date().toISOString();
-    const { error } = await setLiveMode(game.id, publishedAt);
+    const { error } = await setLiveMode(game.id);
     setBusy(false);
     if (error) alert(`Publish failed: ${error.message}`);
     else {
-      const nextGame = {
-        ...game,
-        channel: 'published',
-        tag: 'published',
-        api_active: true,
-        published_at: publishedAt,
-      };
-      onAfter?.('published', nextGame);
+      onAfter?.('published', game);
       alert(`“${game.title}” is now LIVE (published).`);
     }
   };
@@ -345,14 +288,7 @@ export function ModeRow({ game, onAfter }) {
     const { error } = await setDraftMode(game.id);
     if (error) alert(`Failed to switch to Draft Mode: ${error.message}`);
     else {
-      const nextGame = {
-        ...game,
-        channel: 'draft',
-        tag: 'draft',
-        api_active: false,
-        published_at: null,
-      };
-      onAfter?.('draft', nextGame);
+      onAfter?.('draft', game);
       alert(`“${game.title}” is now in Draft Mode (APIs disabled).`);
     }
   };
@@ -447,19 +383,12 @@ export default function GameStatusPanel({
         slug: 'default',
         title: 'Default Game',
         channel: 'draft',
-        tag: 'draft',
         api_active: false,
       };
     }
     if (currentGameId.startsWith('id:')) {
-      const payload = currentGameId.slice(3);
-      const [idValue, channelRaw] = payload.split('::');
-      const channel = channelRaw === 'published' ? 'published' : 'draft';
-      return (
-        games.find((g) => String(g.id ?? '') === idValue && normalizedTag(g) === channel)
-        || games.find((g) => String(g.id ?? '') === idValue)
-        || null
-      );
+      const idValue = currentGameId.slice(3);
+      return games.find((g) => String(g.id ?? '') === idValue) || null;
     }
     if (currentGameId.startsWith('slug:')) {
       const payload = currentGameId.slice(5);
@@ -467,21 +396,12 @@ export default function GameStatusPanel({
       const slugValue = slugValueRaw || '';
       const channel = channelRaw === 'published' ? 'published' : 'draft';
       return (
-        games.find((g) => (g.slug || '') === slugValue && normalizedTag(g) === channel)
+        games.find((g) => (g.slug || '') === slugValue && (g.channel || 'draft') === channel)
         || games.find((g) => (g.slug || '') === slugValue)
         || null
       );
     }
-    const [slugCandidate, channelCandidate] = String(currentGameId || '').split('::');
-    if (slugCandidate) {
-      const channel = channelCandidate === 'published' ? 'published' : 'draft';
-      return (
-        games.find((g) => (g.slug || '') === slugCandidate && normalizedTag(g) === channel)
-        || games.find((g) => (g.slug || '') === slugCandidate)
-        || null
-      );
-    }
-    return null;
+    return games.find((g) => String(g.id ?? '') === String(currentGameId)) || null;
   }, [games, currentGameId]);
 
   const handleStatus = useCallback(async (nextChannel, game) => {
