@@ -6564,6 +6564,7 @@ export default function Admin() {
           <div style={S.card}>
             <h3 style={{ marginTop:0 }}>Game Settings</h3>
             <CodexDropGameDraftsPanel
+              mode={editChannel || 'draft'}
               value={currentGameId}
               onChange={(value, game) => {
                 setConfirmDeleteOpen(false);
