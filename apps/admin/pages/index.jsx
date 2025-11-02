@@ -2838,9 +2838,20 @@ export default function Admin() {
     const fallback = list.find((game) => (game?.slug || '').trim() === slug);
     return fallback || null;
   }, [unifiedSupabaseGames, activeSlug, headerStatus]);
-  const currentGameId = currentGameRecord?.id
-    ? String(currentGameRecord.id)
-    : (activeSlug === 'default' ? 'default::draft' : '');
+  const currentGameId = useMemo(() => {
+    if (currentGameRecord?.slug === 'default') return 'default::draft';
+    if (currentGameRecord?.id != null) return `id:${currentGameRecord.id}`;
+    if (currentGameRecord?.slug) {
+      const channel = currentGameRecord.channel === 'published' ? 'published' : 'draft';
+      return `slug:${currentGameRecord.slug}::${channel}`;
+    }
+    if (activeSlug === 'default') return 'default::draft';
+    if (activeSlug) {
+      const channel = headerStatus === 'published' ? 'published' : 'draft';
+      return `slug:${activeSlug}::${channel}`;
+    }
+    return '';
+  }, [activeSlug, currentGameRecord, headerStatus]);
   const [saveBusy, setSaveBusy] = useState(false);
   const [openGameModal, setOpenGameModal] = useState(false);
   const [gamesIndex, setGamesIndex] = useState({ bySlug: {}, count: 0 });
@@ -4794,20 +4805,58 @@ export default function Admin() {
 
   const handleUnifiedGameChange = useCallback(
     (value, game) => {
+      if (!value && !game) return;
       if (value === 'default::draft' || game?.slug === 'default') {
         applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
         return;
       }
+
       const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
-      const match = game
-        ? game
-        : list.find((entry) => String(entry?.id ?? '') === String(value ?? ''));
-      if (!match) return;
-      const slug = (match.slug || '').trim() || 'default';
-      const channel = slug === 'default'
-        ? 'draft'
-        : (match.channel === 'published' ? 'published' : 'draft');
-      const label = `${match.title || slug}${channel === 'published' ? ' (published)' : ' (draft)'}`;
+      let match = game || null;
+      let slug = '';
+      let channel = 'draft';
+
+      if (typeof value === 'string' && value.startsWith('slug:')) {
+        const payload = value.slice(5);
+        const [slugValue, channelValue] = payload.split('::');
+        slug = (slugValue || '').trim();
+        channel = channelValue === 'published' ? 'published' : 'draft';
+        if (!match && slug) {
+          match = list.find((entry) => (entry?.slug || '').trim() === slug && (entry?.channel || 'draft') === channel)
+            || list.find((entry) => (entry?.slug || '').trim() === slug)
+            || null;
+        }
+      } else if (typeof value === 'string' && value.startsWith('id:')) {
+        const idValue = value.slice(3);
+        if (!match) {
+          match = list.find((entry) => String(entry?.id ?? '') === idValue) || null;
+        }
+        if (match) {
+          slug = (match.slug || '').trim();
+          channel = match.channel === 'published' ? 'published' : 'draft';
+        }
+      } else {
+        if (!match) {
+          match = list.find((entry) => String(entry?.id ?? '') === String(value ?? '')) || null;
+        }
+        if (match) {
+          slug = (match.slug || '').trim();
+          channel = match.channel === 'published' ? 'published' : 'draft';
+        }
+      }
+
+      if (!slug && match) {
+        slug = (match.slug || '').trim();
+      }
+
+      if (!slug) return;
+
+      if (slug === 'default') {
+        channel = 'draft';
+      }
+
+      const labelBase = match?.title || slug;
+      const label = `${labelBase}${channel === 'published' ? ' (published)' : ' (draft)'}`;
       applyOpenGameFromMenu(slug, channel, label);
       setActiveTagsToOnly(slug);
       logConversation('You', `Switched to ${label}`);

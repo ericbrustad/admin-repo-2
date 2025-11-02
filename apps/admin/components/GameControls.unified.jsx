@@ -19,30 +19,54 @@ const supabase = createClient(
 function normalizeGame(game) {
   if (!game) return null;
   const channel = game.channel === 'published' ? 'published' : 'draft';
-  const slug = game.slug || (channel === 'draft' ? 'default' : '');
-  return { ...game, channel, slug };
+  const slug = typeof game.slug === 'string' && game.slug.trim()
+    ? game.slug.trim()
+    : channel === 'draft'
+      ? 'default'
+      : '';
+  return {
+    id: game.id ?? null,
+    slug,
+    title: game.title ?? (slug || 'Untitled'),
+    channel,
+    api_active: game.api_active ?? (channel === 'published'),
+    updated_at: game.updated_at ?? null,
+    published_at: game.published_at ?? null,
+    source: game.source || 'supabase',
+  };
+}
+
+function deriveGameValue(game) {
+  if (!game) return '';
+  if (game.slug === 'default') return 'default::draft';
+  if (game.id != null) return `id:${game.id}`;
+  if (game.slug) {
+    const channel = game.channel === 'published' ? 'published' : 'draft';
+    return `slug:${game.slug}::${channel}`;
+  }
+  return '';
 }
 
 function ensureDefaultOption(list) {
-  const hasDefault = list.some((entry) => entry.value === 'default::draft');
+  const hasDefault = list.some((entry) => entry.slug === 'default' || entry.value === 'default::draft');
   if (hasDefault) return list;
-  return [
-    {
-      value: 'default::draft',
-      label: 'Default Game (draft)',
-      slug: 'default',
-      channel: 'draft',
-      title: 'Default Game',
-      game: {
-        id: null,
-        slug: 'default',
-        channel: 'draft',
-        title: 'Default Game',
-        api_active: false,
-      },
-    },
-    ...list,
-  ];
+  const defaultGame = {
+    id: null,
+    slug: 'default',
+    title: 'Default Game',
+    channel: 'draft',
+    api_active: false,
+    source: 'virtual',
+  };
+  const defaultOption = {
+    value: 'default::draft',
+    label: 'Default Game (draft)',
+    slug: 'default',
+    channel: 'draft',
+    title: 'Default Game',
+    game: defaultGame,
+  };
+  return [defaultOption, ...list];
 }
 
 // visible status pill
@@ -70,12 +94,50 @@ export function useGames() {
   const load = useCallback(async () => {
     setBusy(true);
     setErr(null);
-    const { data, error } = await supabase
-      .from('games')
-      .select('id, slug, title, channel, api_active, updated_at, published_at')
-      .order('updated_at', { ascending: false });
-    if (error) setErr(error.message);
-    else setGames(Array.isArray(data) ? data.map(normalizeGame) : []);
+
+    let loaded = [];
+    let supabaseError = null;
+
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        const { data, error } = await supabase
+          .from('games')
+          .select('id, slug, title, channel, api_active, updated_at, published_at')
+          .in('channel', ['draft', 'published'])
+          .order('updated_at', { ascending: false });
+        if (error) supabaseError = error.message || 'Failed to load Supabase games';
+        else if (Array.isArray(data)) loaded = data.map(normalizeGame).filter(Boolean);
+      } else {
+        supabaseError = 'Supabase environment variables missing';
+      }
+    } catch (error) {
+      supabaseError = error?.message || 'Failed to load Supabase games';
+    }
+
+    let fallbackError = null;
+    if (!loaded.length) {
+      try {
+        const res = await fetch('/api/games/list', { credentials: 'include', cache: 'no-store' });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(body?.games)) {
+          loaded = body.games.map((game) => normalizeGame({
+            ...game,
+            id: game.id ?? null,
+            api_active: game.channel === 'published',
+            source: 'filesystem',
+          })).filter(Boolean);
+        } else {
+          fallbackError = body?.error || 'No games discovered on filesystem';
+        }
+      } catch (error) {
+        fallbackError = error?.message || 'Failed to load filesystem games';
+      }
+    }
+
+    const combined = loaded.map(normalizeGame).filter(Boolean);
+    setGames(combined);
+    const errorMessage = combined.length ? null : fallbackError || supabaseError;
+    setErr(errorMessage);
     setBusy(false);
   }, []);
 
@@ -89,36 +151,31 @@ export function UnifiedGameSelector({ currentGameId, onSelect }) {
   const { games, busy, error, reload } = useGames();
 
   const options = useMemo(() => {
-    const base = games.map((g) => ({
-      value: String(g.id),
-      label: `${g.title ?? 'Untitled'}${g.channel === 'published' ? ' (published)' : ' (draft)'}`,
-      slug: g.slug,
-      channel: g.channel,
-      id: g.id,
-      game: g,
-    }));
-    return ensureDefaultOption(base.map((entry) => ({ ...entry, game: entry.game ?? null })));
+    const seen = new Set();
+    const base = games.map((g) => {
+      const channel = g.channel === 'published' ? 'published' : 'draft';
+      const value = deriveGameValue(g);
+      const slug = g.slug || (channel === 'draft' ? 'default' : '');
+      const label = `${g.title ?? slug ?? 'Untitled'}${channel === 'published' ? ' (published)' : ' (draft)'}`;
+      const dedupeKey = `${slug}::${channel}`;
+      if (seen.has(dedupeKey) && !value.startsWith('id:')) return null;
+      seen.add(dedupeKey);
+      return {
+        value: value || dedupeKey,
+        label,
+        slug,
+        channel,
+        id: g.id ?? null,
+        game: { ...g, slug, channel },
+      };
+    }).filter(Boolean);
+    return ensureDefaultOption(base);
   }, [games]);
 
   const handleChange = (value) => {
     const match = options.find((opt) => opt.value === value);
     if (match) {
-      onSelect?.(match.value, match.game ?? {
-        id: match.id ?? null,
-        slug: match.slug,
-        channel: match.channel,
-        title: match.label,
-      });
-      return;
-    }
-    if (value === 'default::draft') {
-      onSelect?.('default::draft', {
-        id: null,
-        slug: 'default',
-        channel: 'draft',
-        title: 'Default Game',
-        api_active: false,
-      });
+      onSelect?.(match.value, match.game ?? null);
     } else {
       onSelect?.(value || null, null);
     }
@@ -329,7 +386,22 @@ export default function GameStatusPanel({
         api_active: false,
       };
     }
-    return games.find((g) => String(g.id) === String(currentGameId)) || null;
+    if (currentGameId.startsWith('id:')) {
+      const idValue = currentGameId.slice(3);
+      return games.find((g) => String(g.id ?? '') === idValue) || null;
+    }
+    if (currentGameId.startsWith('slug:')) {
+      const payload = currentGameId.slice(5);
+      const [slugValueRaw, channelRaw] = payload.split('::');
+      const slugValue = slugValueRaw || '';
+      const channel = channelRaw === 'published' ? 'published' : 'draft';
+      return (
+        games.find((g) => (g.slug || '') === slugValue && (g.channel || 'draft') === channel)
+        || games.find((g) => (g.slug || '') === slugValue)
+        || null
+      );
+    }
+    return games.find((g) => String(g.id ?? '') === String(currentGameId)) || null;
   }, [games, currentGameId]);
 
   const handleStatus = useCallback(async (nextChannel, game) => {

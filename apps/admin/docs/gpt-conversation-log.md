@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-02T11:30:00Z
+
+**You:** The unified Saved Games dropdown is empty except for the default draft—pull every game from wherever they're stored so the picker lists real options.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, added a Supabase + filesystem fallback loader that merges draft and published entries, normalized the selector values so slug-based games highlight correctly, and refreshed the admin wiring so switching games updates tags and status without missing published builds.
+
+---
+
 **Timestamp:** 2025-11-02T09:00:00Z
 
 **You:** Replace the duplicate saved-game selectors with the unified Supabase picker, add firm publish and draft toggles, and swap the Settings back button for Close & Save. Capture the ChatGPT-5 thinking confirmation.
