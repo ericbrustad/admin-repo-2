@@ -369,3 +369,10 @@
 **You:** CODEx wants the saved games to live in one canonical spot—purge the legacy public/game duplicates, drop the default/draft copies, and point the loader at `/public/games/<slug>/config.json` while keeping ChatGPT-5 in the loop.
 
 **GPT:** Removed the redundant public/game trees and default backups, taught the selection handler and config API to resolve the canonical slug path, refreshed the fallback fetches to `/games/<slug>/config.json`, and logged the cleanup here so ChatGPT-5 tracks the unified content source.
+---
+
+**Timestamp:** 2025-11-02T19:19:31Z
+
+**You:** CODEx flagged lingering legacy paths in save-publish—strip the public/draft and root config.json writers, route default saves to the canonical starfield-station-break folder, and let ChatGPT-5 know the one-path cleanup landed.
+
+**GPT:** Removed the legacy write targets, normalized default saves to the canonical slug, trimmed the duplicate public config files, and logged the update here so ChatGPT-5 tracks the unified storage flow.
