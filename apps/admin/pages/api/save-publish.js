@@ -95,11 +95,11 @@ export default async function handler(req, res) {
     try { configPayload = typeof configObj === 'string' ? JSON.parse(configObj) : configObj; } catch { configPayload = null; }
 
     const wrote = [];
-    const isDefault = slug === 'default';
+    const canonicalSlug = slug === 'default' ? 'starfield-station-break' : slug;
 
     // Draft (Admin root)
-    const rootDraftM = joinPath(`public/games/${slug}/draft/missions.json`);
-    const rootDraftC = joinPath(`public/games/${slug}/draft/config.json`);
+    const rootDraftM = joinPath(`public/games/${canonicalSlug}/draft/missions.json`);
+    const rootDraftC = joinPath(`public/games/${canonicalSlug}/draft/config.json`);
     await putFileWithRetry(rootDraftM, missionsText, `save+publish(draft missions): ${slug}`);
     wrote.push(rootDraftM);
     await putFileWithRetry(rootDraftC, configText, `save+publish(draft config): ${slug}`);
@@ -108,53 +108,19 @@ export default async function handler(req, res) {
     // Draft (Game) for TEST channel + PUBLISHED (Game live) — only when GAME_ENABLED
     const gameRepoBase = 'apps/game-web/public';
     if (GAME_ENABLED) {
-      const gameDraftM = joinPath(`${gameRepoBase}/games/${slug}/draft/missions.json`);
-      const gameDraftC = joinPath(`${gameRepoBase}/games/${slug}/draft/config.json`);
+      const gameDraftM = joinPath(`${gameRepoBase}/games/${canonicalSlug}/draft/missions.json`);
+      const gameDraftC = joinPath(`${gameRepoBase}/games/${canonicalSlug}/draft/config.json`);
       await putFileWithRetry(gameDraftM, missionsText, `save+publish(game draft missions): ${slug}`);
       wrote.push(gameDraftM);
       await putFileWithRetry(gameDraftC, configText, `save+publish(game draft config): ${slug}`);
       wrote.push(gameDraftC);
 
-      const gamePubM = joinPath(`${gameRepoBase}/games/${slug}/missions.json`);
-      const gamePubC = joinPath(`${gameRepoBase}/games/${slug}/config.json`);
+      const gamePubM = joinPath(`${gameRepoBase}/games/${canonicalSlug}/missions.json`);
+      const gamePubC = joinPath(`${gameRepoBase}/games/${canonicalSlug}/config.json`);
       await putFileWithRetry(gamePubM, missionsText, `publish(${slug}): game missions.json`);
       wrote.push(gamePubM);
       await putFileWithRetry(gamePubC, configText, `publish(${slug}): game config.json`);
       wrote.push(gamePubC);
-    }
-
-    // If default slug, also write legacy locations (admin + legacy public), and legacy game copies if GAME_ENABLED
-    if (isDefault) {
-      const legacyDraftM = joinPath('public/draft/missions.json');
-      const legacyDraftC = joinPath('public/draft/config.json');
-
-      await putFileWithRetry(legacyDraftM, missionsText, 'save+publish(legacy draft missions): default');
-      wrote.push(legacyDraftM);
-      await putFileWithRetry(legacyDraftC, configText, 'save+publish(legacy draft config): default');
-      wrote.push(legacyDraftC);
-
-      const legacyPubM = joinPath('public/missions.json');
-      const legacyPubC = joinPath('public/config.json');
-      await putFileWithRetry(legacyPubM, missionsText, 'publish(legacy missions.json): default');
-      wrote.push(legacyPubM);
-      await putFileWithRetry(legacyPubC, configText, 'publish(legacy config.json): default');
-      wrote.push(legacyPubC);
-
-      if (GAME_ENABLED) {
-        const legacyGameDraftM = joinPath(`${gameRepoBase}/draft/missions.json`);
-        const legacyGameDraftC = joinPath(`${gameRepoBase}/draft/config.json`);
-        const legacyGamePubM = joinPath(`${gameRepoBase}/missions.json`);
-        const legacyGamePubC = joinPath(`${gameRepoBase}/config.json`);
-
-        await putFileWithRetry(legacyGameDraftM, missionsText, 'save+publish(legacy game draft missions): default');
-        wrote.push(legacyGameDraftM);
-        await putFileWithRetry(legacyGameDraftC, configText, 'save+publish(legacy game draft config): default');
-        wrote.push(legacyGameDraftC);
-        await putFileWithRetry(legacyGamePubM, missionsText, 'publish(legacy game missions.json): default');
-        wrote.push(legacyGamePubM);
-        await putFileWithRetry(legacyGamePubC, configText, 'publish(legacy game config.json): default');
-        wrote.push(legacyGamePubC);
-      }
     }
 
     let version = '';
