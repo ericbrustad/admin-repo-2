@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { CloseAndSaveSettings } from './GameControls.unified.jsx';
 
 /**
  * Compact single-row header for Admin.
@@ -17,6 +18,7 @@ export default function HeaderBar({
   onSaveAndPublish = null,
   onMakeLive = null,
   onSetDraftMode = null,
+  onSaveSettings = null,
 }) {
   const S = styles;
   const statusIsPublished = String(status).toLowerCase() === 'published';
@@ -46,6 +48,15 @@ export default function HeaderBar({
     onGo('set_draft_mode');
   };
 
+  const handleCloseSettings = useCallback(async () => {
+    if (typeof onSaveSettings === 'function') {
+      const result = onSaveSettings();
+      const awaited = result && typeof result.then === 'function' ? await result : result;
+      if (awaited === false) return;
+    }
+    onBack();
+  }, [onBack, onSaveSettings]);
+
   return (
     <header id="AdminHeaderBar" data-ui="headerbar" style={S.wrap}>
       <div style={S.left}>
@@ -65,9 +76,9 @@ export default function HeaderBar({
       {/* Middle: actions (hidden in Settings mode except the Settings tag) */}
       <div style={S.middle}>
         {isSettings ? (
-          <button type="button" onClick={() => onBack()} style={S.backBtn} aria-label="Back to main">
-            ← Back
-          </button>
+          <CloseAndSaveSettings
+            onSave={handleCloseSettings}
+          />
         ) : (
           <div style={S.actionsRail} role="toolbar" aria-label="Primary actions">
             <button type="button" style={S.action} onClick={() => onGo('settings')}>Settings</button>
