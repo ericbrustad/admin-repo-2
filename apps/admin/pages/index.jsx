@@ -9,6 +9,7 @@ import SafeBoundary from '../components/SafeBoundary';
 import CodexDropGameDraftsPanel, {
   useCodexGames as useUnifiedGames,
 } from '../components/GameControls.unified.jsx';
+import RepoSnapshotFooter from '../components/RepoSnapshotFooter.jsx';
 import GlobalLocationSelector from '../components/Settings/GlobalLocationSelector.jsx';
 import HideLegacyStatusToggles from '../components/HideLegacyStatusToggles';
 import { AppearanceEditor } from '../components/ui-kit';
@@ -10149,6 +10150,7 @@ function AssignedMediaPageTab({
           />
         </div>
       </div>
+      <RepoSnapshotFooter />
     </main>
   );
 }
