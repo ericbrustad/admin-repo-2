@@ -128,6 +128,18 @@ function removeLocalSnapshot(slug, channel) {
   delete store[key];
   writeLocalSnapshots(Object.keys(store).length ? store : null);
 }
+
+function readLocalSnapshotFor(slug, channel) {
+  const normalizedSlug = String(slug || 'default').trim() || 'default';
+  const normalizedChannel = normalizedSlug === 'default'
+    ? 'draft'
+    : channel === 'published'
+      ? 'published'
+      : 'draft';
+  const store = readLocalSnapshots();
+  if (!store) return null;
+  return store[`${normalizedSlug}::${normalizedChannel}`] || null;
+}
 const EXTS = {
   image: /\.(png|jpg|jpeg|webp|bmp|svg|tif|tiff|avif|heic|heif)$/i,
   gif: /\.(gif)$/i,
@@ -4736,6 +4748,14 @@ export default function Admin() {
       body: JSON.stringify(body),
     });
     const j = await res.json().catch(() => ({}));
+    const repoPath = typeof j?.item?.path === 'string' ? j.item.path : '';
+    const remoteUrl = typeof j?.item?.url === 'string' ? j.item.url : '';
+    const supabaseUrl = typeof j?.item?.supabase?.publicUrl === 'string'
+      ? j.item.supabase.publicUrl
+      : '';
+    const fallbackUrl = repoPath
+      ? `/${repoPath.replace(/^public\//, '').replace(/^\/+/, '')}`
+      : '';
     if (res.ok) {
       let message = `✅ Registered ${safeName} in ${destinationLabel}`;
       if (j?.manifestFallback && j?.manifestPath) {
@@ -4743,11 +4763,15 @@ export default function Admin() {
       } else if (j?.manifestPath) {
         message += ` (manifest: ${j.manifestPath})`;
       }
+      if (!remoteUrl && !supabaseUrl && fallbackUrl) {
+        message += ` — available at ${fallbackUrl}`;
+      }
       setUploadStatus(message);
     } else {
       setUploadStatus(`❌ ${j?.error || 'upload failed'}`);
     }
-    return res.ok ? (j?.item?.url || '') : '';
+    if (!res.ok) return '';
+    return remoteUrl || supabaseUrl || fallbackUrl || '';
   }
 
   const settingsMenuGames = useMemo(() => {
