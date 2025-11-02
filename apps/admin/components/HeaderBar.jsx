@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { CloseAndSaveSettings } from './GameControls.unified.jsx';
+import { CloseAndSaveSettings } from './CodexDrop.GameDraftsPanel.jsx';
 
 /**
  * Compact single-row header for Admin.
