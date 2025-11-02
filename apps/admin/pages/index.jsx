@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import GamesDropdown from '../components/GamesDropdown';
 import HeaderBar from '../components/HeaderBar';
 import TestLauncher from '../components/TestLauncher';
 import HomeDefaultButtons from '../components/HomeDefaultButtons';
@@ -7,8 +6,10 @@ import AnswerResponseEditor from '../components/AnswerResponseEditor';
 import InlineMissionResponses from '../components/InlineMissionResponses';
 import AssignedMediaTab from '../components/AssignedMediaTab';
 import SafeBoundary from '../components/SafeBoundary';
-import SavedGamesPicker from '../components/Settings/SavedGamesPicker';
-import ProjectFlags from '../components/Settings/ProjectFlags.jsx';
+import GameStatusPanel, {
+  UnifiedGameSelector as UnifiedGameSelectorControl,
+  useGames as useUnifiedGames,
+} from '../components/GameControls.unified.jsx';
 import GlobalLocationSelector from '../components/Settings/GlobalLocationSelector.jsx';
 import HideLegacyStatusToggles from '../components/HideLegacyStatusToggles';
 import { AppearanceEditor } from '../components/ui-kit';
@@ -2416,6 +2417,7 @@ export default function Admin() {
   const [adminMeta, setAdminMeta] = useState(ADMIN_META_INITIAL_STATE);
 
   const [games, setGames] = useState([]);
+  const { games: unifiedSupabaseGames, reload: reloadUnifiedGames } = useUnifiedGames();
   const [activeSlug, setActiveSlug] = useState('default'); // Starfield default stored on legacy root
   const [activeGameMeta, setActiveGameMeta] = useState(null);
   const [gameFlagsBusy, setGameFlagsBusy] = useState(false);
@@ -2827,6 +2829,29 @@ export default function Admin() {
   const [testChannel, setTestChannel] = useState('draft');
   const [editChannel, setEditChannel] = useState('draft');
   const headerStatus = editChannel === 'published' ? 'published' : 'draft';
+  const currentGameRecord = useMemo(() => {
+    const slug = (activeSlug || 'default').trim();
+    const normalizedChannel = slug === 'default' ? 'draft' : headerStatus;
+    const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
+    const exact = list.find((game) => (game?.slug || '').trim() === slug && (game?.channel || 'draft') === normalizedChannel);
+    if (exact) return exact;
+    const fallback = list.find((game) => (game?.slug || '').trim() === slug);
+    return fallback || null;
+  }, [unifiedSupabaseGames, activeSlug, headerStatus]);
+  const currentGameId = useMemo(() => {
+    if (currentGameRecord?.slug === 'default') return 'default::draft';
+    if (currentGameRecord?.id != null) return `id:${currentGameRecord.id}`;
+    if (currentGameRecord?.slug) {
+      const channel = currentGameRecord.channel === 'published' ? 'published' : 'draft';
+      return `slug:${currentGameRecord.slug}::${channel}`;
+    }
+    if (activeSlug === 'default') return 'default::draft';
+    if (activeSlug) {
+      const channel = headerStatus === 'published' ? 'published' : 'draft';
+      return `slug:${activeSlug}::${channel}`;
+    }
+    return '';
+  }, [activeSlug, currentGameRecord, headerStatus]);
   const [saveBusy, setSaveBusy] = useState(false);
   const [openGameModal, setOpenGameModal] = useState(false);
   const [gamesIndex, setGamesIndex] = useState({ bySlug: {}, count: 0 });
@@ -2962,6 +2987,7 @@ export default function Admin() {
     if (!gameEnabled) {
       setGames([]);
       setGamesIndex({ bySlug: {}, count: 0 });
+      void reloadUnifiedGames();
       return;
     }
     try {
@@ -2969,7 +2995,10 @@ export default function Admin() {
       const j = await r.json();
       if (j.ok) setGames(Array.isArray(j.games) ? j.games : []);
     } catch {}
-  }, [gameEnabled]);
+    finally {
+      void reloadUnifiedGames();
+    }
+  }, [gameEnabled, reloadUnifiedGames, setGamesIndex]);
 
   useEffect(() => {
     refreshGamesIndex();
@@ -3910,6 +3939,8 @@ export default function Admin() {
     [activeSlug, getSnapshotFor, headerStatus, logConversation, reloadGamesList, refreshGamesIndex, setPreviewNonce, setStatus],
   );
 
+  const handleSaveAllSettings = useCallback(() => saveFull(false), [saveFull]);
+
   const handleMakeLive = useCallback(async () => {
     const ok = await saveFull(true);
     if (ok) {
@@ -4719,27 +4750,6 @@ export default function Admin() {
     return res.ok ? (j?.item?.url || '') : '';
   }
 
-  const selectGameOptions = useMemo(() => {
-    const entries = new Map();
-    entries.set('default', `${STARFIELD_DEFAULTS.title} (default)`);
-    const bySlug = gamesIndex?.bySlug || {};
-    Object.entries(bySlug).forEach(([slug, channels]) => {
-      if (!slug || slug === 'default') return;
-      const source = channels?.draft || channels?.published || {};
-      const title = source.title || slug;
-      const mode = source.mode;
-      entries.set(slug, mode ? `${title} — ${mode}` : title);
-    });
-    if (entries.size === 1 && Array.isArray(games)) {
-      games.forEach((game) => {
-        if (!game || !game.slug || game.slug === 'default') return;
-        if (entries.has(game.slug)) return;
-        const label = `${game.title || game.slug}${game.mode ? ` — ${game.mode}` : ''}`;
-        entries.set(game.slug, label);
-      });
-    }
-    return Array.from(entries, ([value, label]) => ({ value, label }));
-  }, [gamesIndex, games]);
   const settingsMenuGames = useMemo(() => {
     const entries = [
       {
@@ -4772,58 +4782,6 @@ export default function Admin() {
     return entries;
   }, [gamesIndex]);
 
-  const savedGamesList = useMemo(() => {
-    const bySlug = gamesIndex?.bySlug || {};
-    const entries = [];
-    Object.entries(bySlug).forEach(([slug, channels]) => {
-      if (!slug) return;
-      const variants = [
-        { channel: 'published', data: channels?.published },
-        { channel: 'draft', data: channels?.draft },
-      ];
-      variants.forEach(({ channel, data }) => {
-        if (!data) return;
-        const normalizedChannel = channel === 'published' ? 'published' : 'draft';
-        const base = typeof data === 'object' && data !== null ? data : {};
-        entries.push({
-          ...base,
-          slug: base.slug || slug,
-          title: base.title || slug,
-          channel: normalizedChannel,
-        });
-      });
-    });
-    if (!entries.length) {
-      (Array.isArray(games) ? games : []).forEach((game) => {
-        if (!game || !game.slug) return;
-        const normalizedChannel = String(game.channel || 'draft').toLowerCase() === 'published' ? 'published' : 'draft';
-        entries.push({
-          ...game,
-          slug: game.slug,
-          title: game.title || game.slug,
-          channel: normalizedChannel,
-        });
-      });
-    }
-    const hasDefault = entries.some((entry) => entry.slug === 'default' && entry.channel !== 'published');
-    if (!hasDefault) {
-      entries.unshift({ id: 'default', slug: 'default', title: STARFIELD_DEFAULTS.title, channel: 'draft' });
-    }
-    return entries;
-  }, [gamesIndex, games]);
-
-  const savedGamesChannel = useMemo(() => {
-    const slug = activeSlug || 'default';
-    const desired = slug === 'default' ? 'draft' : headerStatus;
-    const match = savedGamesList.some(
-      (entry) => entry.slug === slug && (entry.channel || 'draft') === desired,
-    );
-    if (match) return desired;
-    return 'draft';
-  }, [activeSlug, headerStatus, savedGamesList]);
-
-  const savedGamesValue = `${activeSlug || 'default'}:${savedGamesChannel}`;
-
   useEffect(() => {
     if (tab !== 'settings' && confirmDeleteOpen) {
       setConfirmDeleteOpen(false);
@@ -4839,9 +4797,87 @@ export default function Admin() {
       setEditChannel(nextChannel);
       setTab('settings');
       const displayLabel = label || `${slug} (${normalized === 'default' ? 'default' : nextChannel})`;
-      setStatus(`Opened ${displayLabel}`);
+      setStatus(`✅ Opened ${displayLabel}`);
+      logConversation('GPT', `Loaded ${displayLabel} in ${nextChannel} mode.`);
     },
-    [setActiveSlug, setEditChannel, setTab, setStatus],
+    [logConversation, setActiveSlug, setEditChannel, setStatus, setTab],
+  );
+
+  const handleUnifiedGameChange = useCallback(
+    (value, game) => {
+      if (!value && !game) return;
+      if (value === 'default::draft' || game?.slug === 'default') {
+        applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
+        return;
+      }
+
+      const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
+      let match = game || null;
+      let slug = '';
+      let channel = 'draft';
+
+      if (typeof value === 'string' && value.startsWith('slug:')) {
+        const payload = value.slice(5);
+        const [slugValue, channelValue] = payload.split('::');
+        slug = (slugValue || '').trim();
+        channel = channelValue === 'published' ? 'published' : 'draft';
+        if (!match && slug) {
+          match = list.find((entry) => (entry?.slug || '').trim() === slug && (entry?.channel || 'draft') === channel)
+            || list.find((entry) => (entry?.slug || '').trim() === slug)
+            || null;
+        }
+      } else if (typeof value === 'string' && value.startsWith('id:')) {
+        const idValue = value.slice(3);
+        if (!match) {
+          match = list.find((entry) => String(entry?.id ?? '') === idValue) || null;
+        }
+        if (match) {
+          slug = (match.slug || '').trim();
+          channel = match.channel === 'published' ? 'published' : 'draft';
+        }
+      } else {
+        if (!match) {
+          match = list.find((entry) => String(entry?.id ?? '') === String(value ?? '')) || null;
+        }
+        if (match) {
+          slug = (match.slug || '').trim();
+          channel = match.channel === 'published' ? 'published' : 'draft';
+        }
+      }
+
+      if (!slug && match) {
+        slug = (match.slug || '').trim();
+      }
+
+      if (!slug) return;
+
+      if (slug === 'default') {
+        channel = 'draft';
+      }
+
+      const labelBase = match?.title || slug;
+      const label = `${labelBase}${channel === 'published' ? ' (published)' : ' (draft)'}`;
+      applyOpenGameFromMenu(slug, channel, label);
+      setActiveTagsToOnly(slug);
+      logConversation('You', `Switched to ${label}`);
+      logConversation('GPT', 'Tag filters updated to focus on the selected game.');
+    },
+    [applyOpenGameFromMenu, logConversation, setActiveTagsToOnly, unifiedSupabaseGames],
+  );
+
+  const handleUnifiedStatusChange = useCallback(
+    (nextChannel, game) => {
+      if (nextChannel === 'published') {
+        setEditChannel('published');
+      } else {
+        setEditChannel('draft');
+      }
+      if (game?.slug) {
+        setActiveSlug(game.slug);
+      }
+      void reloadGamesList();
+    },
+    [reloadGamesList, setActiveSlug, setEditChannel],
   );
 
   useEffect(() => {
@@ -5380,6 +5416,7 @@ export default function Admin() {
           onSaveAndPublish={handleMakeLive}
           onMakeLive={handleMakeLive}
           onSetDraftMode={handleSetDraftMode}
+          onSaveSettings={handleSaveAllSettings}
         />
       </div>
       <div style={S.headerControls}>
@@ -5403,19 +5440,11 @@ export default function Admin() {
             </button>
           </div>
           {gameEnabled && (
-            <div style={S.headerGameSelect}>
-              <label style={S.headerGameSelectLabel}>Game:</label>
-              <select
-                value={activeSlug}
-                onChange={(e) => setActiveSlug(e.target.value)}
-                style={{ ...S.input, width: 240 }}
-              >
-                {selectGameOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <UnifiedGameSelectorControl
+                currentGameId={currentGameId}
+                onSelect={handleUnifiedGameChange}
+              />
             </div>
           )}
         </div>
@@ -6332,10 +6361,15 @@ export default function Admin() {
         <main style={S.wrap}>
           <div style={S.card}>
             <h3 style={{ marginTop:0 }}>Game Settings</h3>
-            {/* Codex note (2025-10-30): Saved Games dropdown (filesystem scan via /api/games/list) */}
-            <div data-codex="SettingsGamesDropdown">
-              <GamesDropdown />
-            </div>
+            <GameStatusPanel
+              currentGameId={currentGameId}
+              onChangeGame={(value, game) => {
+                setConfirmDeleteOpen(false);
+                handleUnifiedGameChange(value, game);
+              }}
+              onSaveSettings={handleSaveAllSettings}
+              onStatusChange={handleUnifiedStatusChange}
+            />
             <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
               <div>
                 <button
@@ -6358,27 +6392,6 @@ export default function Admin() {
                   + New Game
                 </button>
               </div>
-              <SavedGamesPicker
-                games={savedGamesList}
-                value={savedGamesValue}
-                defaultSlug={defaultSlug}
-                onChange={(val) => {
-                  setConfirmDeleteOpen(false);
-                  const [slug, channel] = String(val || '').split(':');
-                  if (!slug) return;
-                  const normalized = channel === 'published' ? 'published' : 'draft';
-                  const match = savedGamesList.find(
-                    (entry) => entry.slug === slug && (entry.channel || 'draft') === normalized,
-                  );
-                  const label = match
-                    ? `${match.title || match.slug}${normalized === 'published' ? ' (published)' : ' (draft)'}`
-                    : undefined;
-                  applyOpenGameFromMenu(slug, normalized, label);
-                  setActiveTagsToOnly(slug);
-                  logConversation('You', `Switched to ${label || slug}`);
-                  logConversation('GPT', 'Tag filters updated to focus on the selected game.');
-                }}
-              />
               <div>
                 {confirmDeleteOpen ? (
                   <div
@@ -6454,16 +6467,6 @@ export default function Admin() {
                 )}
               </div>
             </div>
-            <ProjectFlags
-              gameEnabled={activeGameMeta?.game_enabled ?? true}
-              defaultChannel={activeGameMeta?.default_channel ?? 'draft'}
-              useLocationAsDefault={Boolean(activeGameMeta?.settings?.useLocationAsDefault)}
-              busy={gameFlagsBusy}
-              error={gameFlagsError}
-              onMirrorChange={(checked) => saveGameFlags({ gameEnabled: checked }).catch(() => {})}
-              onChannelChange={(value) => saveGameFlags({ defaultChannel: value }).catch(() => {})}
-              onUseLocationDefaultChange={(checked) => saveGameFlags({ useLocationAsDefault: checked }).catch(() => {})}
-            />
             <div style={S.titleEditorBlock}>
               <label style={S.fieldLabel} htmlFor="admin-title-input">Game Title</label>
               <input
