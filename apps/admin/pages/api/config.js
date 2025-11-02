@@ -16,6 +16,13 @@ const authHeaders = {
 };
 
 const hasGithubConfig = Boolean(owner && repo && token);
+const STARFIELD_CANONICAL_SLUG = 'starfield-station-break';
+
+function canonicalSlug(raw) {
+  const slug = (raw || '').toString().trim();
+  if (!slug || slug === 'default') return STARFIELD_CANONICAL_SLUG;
+  return slug;
+}
 
 async function readLocalFile(filePath) {
   try {
@@ -47,10 +54,8 @@ async function getFile(filePath) {
 
 export default async function handler(req, res) {
   try {
-    const slug = (req.query.slug || '').toString().trim();
-    const targetPath = slug
-      ? `public/games/${slug}/config.json`
-      : `public/config.json`;
+    const slug = canonicalSlug(req.query.slug || '');
+    const targetPath = `public/games/${slug}/config.json`;
 
     const file = await getFile(targetPath);
     if (!file) {
