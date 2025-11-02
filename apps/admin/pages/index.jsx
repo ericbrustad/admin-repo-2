@@ -107,6 +107,12 @@ function writeLocalSnapshots(map) {
   }
 }
 
+function setPageTitle(name) {
+  if (typeof document !== 'undefined') {
+    document.title = `${name || 'Admin'} — Admin`;
+  }
+}
+
 function persistLocalSnapshot(slug, channel, snapshot) {
   if (typeof window === 'undefined') return null;
   const key = `${slug || 'default'}::${channel || 'draft'}`;
@@ -2429,6 +2435,12 @@ export default function Admin() {
 
   const [games, setGames] = useState([]);
   const { games: unifiedSupabaseGames, reload: reloadUnifiedGames } = useUnifiedGames();
+  const manualSelectLockRef = useRef(false);
+  const [manualSelectLock, _setManualSelectLock] = useState(false);
+  const setSelectionLock = useCallback((on) => {
+    manualSelectLockRef.current = on;
+    _setManualSelectLock(on);
+  }, []);
   const [activeSlug, setActiveSlug] = useState('default'); // Starfield default stored on legacy root
   const [activeGameMeta, setActiveGameMeta] = useState(null);
   const [gameFlagsBusy, setGameFlagsBusy] = useState(false);
@@ -2844,16 +2856,23 @@ export default function Admin() {
     const slug = (activeSlug || 'default').trim();
     const normalizedChannel = slug === 'default' ? 'draft' : headerStatus;
     const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
-    const exact = list.find((game) => (game?.slug || '').trim() === slug && (game?.channel || 'draft') === normalizedChannel);
+    const exact = list.find((game) => {
+      const entrySlug = (game?.slug || '').trim();
+      const entryTag = (typeof game?.tag === 'string' ? game.tag : game?.channel) === 'published' ? 'published' : 'draft';
+      return entrySlug === slug && entryTag === normalizedChannel;
+    });
     if (exact) return exact;
     const fallback = list.find((game) => (game?.slug || '').trim() === slug);
     return fallback || null;
   }, [unifiedSupabaseGames, activeSlug, headerStatus]);
   const currentGameId = useMemo(() => {
     if (currentGameRecord?.slug === 'default') return 'default::draft';
-    if (currentGameRecord?.id != null) return `id:${currentGameRecord.id}`;
+    if (currentGameRecord?.id != null) {
+      const channel = currentGameRecord?.tag === 'published' || currentGameRecord?.channel === 'published' ? 'published' : 'draft';
+      return `id:${currentGameRecord.id}::${channel}`;
+    }
     if (currentGameRecord?.slug) {
-      const channel = currentGameRecord.channel === 'published' ? 'published' : 'draft';
+      const channel = currentGameRecord?.tag === 'published' || currentGameRecord?.channel === 'published' ? 'published' : 'draft';
       return `slug:${currentGameRecord.slug}::${channel}`;
     }
     if (activeSlug === 'default') return 'default::draft';
@@ -3270,6 +3289,7 @@ export default function Admin() {
   }, [buildDefaultSnapshotPayload, defaultSlug, readDefaultSnapshot, slugForMeta, writeDefaultSnapshot]);
 
   useEffect(() => {
+    if (manualSelectLockRef.current) return; // CODEx: don’t override a fresh selection
     const normalizedSlug = slugForMeta;
     const configSlug = (config?.game?.slug || '').trim();
     if (configSlug && configSlug !== normalizedSlug) {
@@ -3287,7 +3307,7 @@ export default function Admin() {
     } else {
       setGameTagsDraft('');
     }
-  }, [config?.game?.slug, config?.game?.tags, slugForMeta]);
+  }, [manualSelectLock, config?.game?.slug, config?.game?.tags, slugForMeta]);
 
   useEffect(() => {
     if (!config) return;
@@ -3296,6 +3316,7 @@ export default function Admin() {
   }, [config, ensureDefaultSnapshotFromState]);
 
   useEffect(() => {
+    if (manualSelectLockRef.current) return; // CODEx: don’t override a fresh selection
     const normalizedSlug = slugForMeta;
     const configSlug = (config?.game?.slug || '').trim();
     if (configSlug && configSlug !== normalizedSlug) {
@@ -3307,7 +3328,7 @@ export default function Admin() {
       : '';
     const nextTitle = (config?.game?.title || '').trim() || fallbackTitle;
     setTitleDraft(nextTitle);
-  }, [config?.game?.slug, config?.game?.title, slugForMeta]);
+  }, [manualSelectLock, config?.game?.slug, config?.game?.title, slugForMeta]);
 
   useEffect(() => {
     setActiveTagsToOnly(slugForMeta);
@@ -4847,198 +4868,167 @@ export default function Admin() {
     [logConversation, setActiveSlug, setEditChannel, setStatus, setTab],
   );
 
+  // CODEx: authoritative selection handler with guard against revert
   const handleUnifiedGameChange = useCallback(
     (value, game) => {
       if (!value && !game) return;
-      if (value === 'default::draft' || game?.slug === 'default') {
-        applyOpenGameFromMenu('default', 'draft', 'Default Game (draft)');
-        return;
-      }
+
+      // Lock while we pivot state so late effects can’t clobber it.
+      setSelectionLock(true);
 
       const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
       let match = game || null;
       let slug = '';
       let channel = 'draft';
 
-      if (typeof value === 'string' && value.startsWith('slug:')) {
-        const payload = value.slice(5);
-        const [slugValue, channelValue] = payload.split('::');
+      const pickTitle = (a, b) => (a && String(a).trim()) || (b && String(b).trim()) || '';
+
+      if (value === 'default::draft' || game?.slug === 'default') {
+        slug = 'default';
+        channel = 'draft';
+        match = match || { slug: 'default', channel: 'draft', title: 'Starfield Station Break' };
+      } else if (typeof value === 'string' && value.startsWith('slug:')) {
+        const [slugValue, channelValue] = value.slice(5).split('::');
         slug = (slugValue || '').trim();
         channel = channelValue === 'published' ? 'published' : 'draft';
         if (!match && slug) {
-          match = list.find((entry) => (entry?.slug || '').trim() === slug && (entry?.tag || entry?.channel || 'draft') === channel)
-            || list.find((entry) => (entry?.slug || '').trim() === slug)
-            || null;
+          match =
+            list.find(e => (e?.slug || '').trim() === slug && (e?.channel || 'draft') === channel) ||
+            list.find(e => (e?.slug || '').trim() === slug) ||
+            null;
         }
       } else if (typeof value === 'string' && value.startsWith('id:')) {
-        const payload = value.slice(3);
-        const [idValue, channelValue] = payload.split('::');
-        if (!match) {
-          match = list.find((entry) => String(entry?.id ?? '') === idValue) || null;
-        }
+        const [idValue, channelValue] = value.slice(3).split('::');
+        match = match || list.find(e => String(e?.id ?? '') === idValue) || null;
         if (match) {
           slug = (match.slug || '').trim();
-          channel = channelValue === 'published' ? 'published' : (match.tag === 'published' || match.channel === 'published' ? 'published' : 'draft');
+          channel = channelValue === 'published'
+            ? 'published'
+            : (match.channel === 'published' ? 'published' : 'draft');
         }
-      } else if (typeof value === 'string') {
-        if (!match) {
-          match = list.find((entry) => String(entry?.id ?? '') === String(value ?? '')) || null;
-        }
+      } else {
+        match = match || list.find(e => String(e?.id ?? '') === String(value ?? '')) || null;
         if (match) {
           slug = (match.slug || '').trim();
-          channel = match.tag === 'published' || match.channel === 'published' ? 'published' : 'draft';
+          channel = match.channel === 'published' ? 'published' : 'draft';
         }
       }
 
-      if (!slug && match) {
-        slug = (match.slug || '').trim();
-      }
+      if (!slug && match) slug = (match.slug || '').trim();
+      if (!slug) { setSelectionLock(false); return; }
+      if (slug === 'default') channel = 'draft'; // default is always draft
 
-      if (!slug) return;
+      // Prefer local snapshot (drafts stay local)
+      const local = readLocalSnapshotFor(slug, channel);
+      const localConfig = local?.snapshot?.data?.config && typeof local.snapshot.data.config === 'object'
+        ? local.snapshot.data.config : null;
+      const localSuite = local?.snapshot?.data?.suite && typeof local.snapshot.data.suite === 'object'
+        ? local.snapshot.data.suite : null;
 
-      if (slug === 'default') {
-        channel = 'draft';
-      }
+      const nextTitle = pickTitle(local?.snapshot?.meta?.title, pickTitle(match?.title, slug)) || slug;
 
-      const normalizedSlug = slug || 'default';
-      const normalizedChannel = normalizedSlug === 'default' ? 'draft' : (channel === 'published' ? 'published' : 'draft');
-      const labelBase = (match?.title || match?.config?.game?.title || slug || '').trim() || normalizedSlug;
-      const label = `${labelBase}${normalizedChannel === 'published' ? ' (published)' : ' (draft)'}`;
+      // Immediate, authoritative UI sync
+      setTitleDraft(nextTitle);
+      setActiveSlug(slug);
+      setEditChannel(channel);
+      setGameTagsDraft(slug);
+      updateDomGameTagsField(slug);
+      setPageTitle(nextTitle);
 
-      if (normalizedSlug) {
-        setGameTagsDraft(normalizedSlug);
-        updateDomGameTagsField(normalizedSlug);
-      }
-
-      const localSnapshotRecord = readLocalSnapshotFor(normalizedSlug, normalizedChannel);
-      const localSnapshot = localSnapshotRecord?.snapshot || null;
-      const localConfig = localSnapshot?.data?.config && typeof localSnapshot.data.config === 'object'
-        ? localSnapshot.data.config
-        : null;
-      const localSuite = localSnapshot?.data?.suite && typeof localSnapshot.data.suite === 'object'
-        ? localSnapshot.data.suite
-        : null;
-      const localMetaTitle = typeof localSnapshot?.meta?.title === 'string' ? localSnapshot.meta.title : '';
-
-      if (match || localConfig || localSuite || localMetaTitle) {
+      // If we have a local snapshot, use it now so the UI reflects drafts instantly.
+      if (localConfig || localSuite) {
         const defaults = defaultConfig();
-        const baseSettings = localConfig?.settings && typeof localConfig.settings === 'object'
-          ? localConfig.settings
-          : match?.settings && typeof match.settings === 'object'
-            ? match.settings
-            : {};
-        const normalizedTag = match?.tag === 'published' ? 'published' : normalizedChannel;
-        setActiveGameMeta({
-          id: match?.id ?? null,
-          slug: normalizedSlug,
-          tag: normalizedTag,
-          default_channel: match?.default_channel === 'published' ? 'published' : 'draft',
-          game_enabled: typeof match?.game_enabled === 'boolean' ? match.game_enabled : true,
-          settings: baseSettings,
-          cover_image:
-            (localConfig?.game && localConfig.game.coverImage)
-            || match?.coverImage
-            || match?.cover_image
-            || null,
-        });
-
-        const rawConfig = localConfig || (match?.config && typeof match.config === 'object' ? match.config : null);
-        if (rawConfig) {
-          let merged = {
-            ...defaults,
-            ...rawConfig,
-            game: { ...defaults.game, ...(rawConfig.game || {}), slug: normalizedSlug },
-            splash: { ...defaults.splash, ...(rawConfig.splash || {}) },
-            timer: { ...defaults.timer, ...(rawConfig.timer || {}) },
-            devices: Array.isArray(rawConfig.devices)
-              ? rawConfig.devices
-              : Array.isArray(rawConfig.powerups)
-                ? rawConfig.powerups
-                : [],
-            media: { rewardsPool: [], penaltiesPool: [], ...(rawConfig.media || {}) },
-            icons: { ...DEFAULT_ICONS, ...(rawConfig.icons || {}) },
-            appearance: {
-              ...defaultAppearance(),
-              ...defaults.appearance,
-              ...(rawConfig.appearance || {}),
-            },
-            map: { ...defaults.map, ...(rawConfig.map || {}) },
-            geofence: { ...defaults.geofence, ...(rawConfig.geofence || {}) },
-            mediaTriggers: { ...DEFAULT_TRIGGER_CONFIG, ...(rawConfig.mediaTriggers || {}) },
-          };
-          const storedSkin = rawConfig.appearanceSkin && ADMIN_SKIN_TO_UI.has(rawConfig.appearanceSkin)
-            ? rawConfig.appearanceSkin
+        let merged = {
+          ...defaults,
+          ...(localConfig || {}),
+          game: { ...defaults.game, ...(localConfig?.game || {}), slug },
+          splash: { ...defaults.splash, ...(localConfig?.splash || {}) },
+          timer: { ...defaults.timer, ...(localConfig?.timer || {}) },
+          devices: Array.isArray(localConfig?.devices)
+            ? localConfig.devices
+            : Array.isArray(localConfig?.powerups)
+              ? localConfig.powerups
+              : [],
+          media: { rewardsPool: [], penaltiesPool: [], ...(localConfig?.media || {}) },
+          icons: { ...DEFAULT_ICONS, ...(localConfig?.icons || {}) },
+          appearance: { ...defaultAppearance(), ...defaults.appearance, ...(localConfig?.appearance || {}) },
+          map: { ...defaults.map, ...(localConfig?.map || {}) },
+          geofence: { ...defaults.geofence, ...(localConfig?.geofence || {}) },
+          mediaTriggers: { ...DEFAULT_TRIGGER_CONFIG, ...(localConfig?.mediaTriggers || {}) },
+        };
+        const storedSkin =
+          localConfig?.appearanceSkin && ADMIN_SKIN_TO_UI.has(localConfig.appearanceSkin)
+            ? localConfig.appearanceSkin
             : null;
-          merged.appearanceSkin = storedSkin || detectAppearanceSkin(merged.appearance, rawConfig.appearanceSkin);
-          merged.appearanceTone = rawConfig.appearanceTone || merged.appearanceTone || 'light';
-          merged = applyDefaultIcons(merged);
-          merged = normalizeGameMetadata(merged, normalizedSlug);
-          setConfig(merged);
-          const mergedTitle = (merged?.game?.title || labelBase || normalizedSlug).trim();
-          setTitleDraft(mergedTitle);
-        } else {
-          setConfig(null);
-          setTitleDraft(localMetaTitle ? localMetaTitle.trim() : labelBase);
-        }
+        merged.appearanceSkin = storedSkin || detectAppearanceSkin(merged.appearance, localConfig?.appearanceSkin);
+        merged.appearanceTone = localConfig?.appearanceTone || merged.appearanceTone || 'light';
+        merged = applyDefaultIcons(merged);
+        merged = normalizeGameMetadata(merged, slug);
+        setConfig(merged);
+
         if (localSuite) {
           const missionsList = Array.isArray(localSuite.missions) ? localSuite.missions : [];
-          setSuite({
-            version: localSuite.version || '0.0.0',
-            missions: cloneForSnapshot(missionsList),
-          });
+          setSuite({ version: localSuite.version || '0.0.0', missions: cloneForSnapshot(missionsList) });
         } else {
           setSuite(null);
         }
-      } else {
+
         setActiveGameMeta({
-          id: null,
-          slug: normalizedSlug,
-          tag: normalizedChannel,
-          default_channel: normalizedChannel,
-          game_enabled: true,
-          settings: {},
-          cover_image: null,
+          id: match?.id ?? null,
+          slug,
+          tag: channel,
+          default_channel: match?.default_channel === 'published' ? 'published' : 'draft',
+          game_enabled: typeof match?.game_enabled === 'boolean' ? match.game_enabled : true,
+          settings: (merged?.settings && typeof merged.settings === 'object') ? merged.settings : {},
+          cover_image: merged?.game?.coverImage || match?.coverImage || match?.cover_image || null,
         });
-        setConfig(null);
-        setTitleDraft(labelBase);
-        setSuite(null);
       }
 
+      // Reset misc UI & announce
       setSelected(null);
       setEditing(null);
       setSelectedDevIdx(null);
       setSelectedMissionIdx(null);
       setDirty(false);
 
-      applyOpenGameFromMenu(normalizedSlug, normalizedChannel, label);
-      setActiveTagsToOnly(normalizedSlug);
+      const label = `${nextTitle}${channel === 'published' ? ' (published)' : ' (draft)'}`;
+      applyOpenGameFromMenu(slug, channel, label);
+      setActiveTagsToOnly(slug);
       logConversation('You', `Switched to ${label}`);
-      logConversation('GPT', 'Tag filters updated to focus on the selected game.');
+      logConversation('GPT', 'Header title, tags, and preview updated for the selected game.');
+
+      // Release lock after a tick so late effects don’t clobber this frame.
+      setTimeout(() => setSelectionLock(false), 1000);
     },
     [
       ADMIN_SKIN_TO_UI,
       DEFAULT_ICONS,
       DEFAULT_TRIGGER_CONFIG,
-      cloneForSnapshot,
       applyDefaultIcons,
       applyOpenGameFromMenu,
+      cloneForSnapshot,
       defaultAppearance,
       defaultConfig,
       detectAppearanceSkin,
       logConversation,
-      readLocalSnapshotFor,
       normalizeGameMetadata,
+      readLocalSnapshotFor,
       setActiveGameMeta,
+      setActiveSlug,
       setActiveTagsToOnly,
       setConfig,
       setDirty,
+      setEditChannel,
       setEditing,
+      setGameTagsDraft,
       setSelected,
       setSelectedDevIdx,
       setSelectedMissionIdx,
       setSuite,
       setTitleDraft,
+      setSelectionLock,
       unifiedSupabaseGames,
+      updateDomGameTagsField,
     ],
   );
 
@@ -5344,6 +5334,9 @@ export default function Admin() {
   const headerCoverThumb = viewConfig?.game?.coverImage
     ? toDirectMediaURL(viewConfig.game.coverImage)
     : '';
+  useEffect(() => {
+    setPageTitle(headerGameTitle || 'Admin');
+  }, [headerGameTitle]);
   const currentSlugDisplay = config?.game?.slug || slugForMeta;
   const normalizedExistingTitle = (headerGameTitle || '').trim();
   const normalizedDraftTitle = (titleDraft || '').trim();

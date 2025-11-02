@@ -354,3 +354,10 @@
 **You:** Header bar title still sticks on the prior game and the title/tag inputs stay stale after switching—make the Codex dropdown push the new selection through immediately and brief ChatGPT-5 on the fix.
 
 **GPT:** Synced the Settings state so selection changes refresh the header, title, and tag fields right away (guarding against stale configs), kept slug fallbacks when tags are missing, and logged the update here so ChatGPT-5 tracks the behavior.
+---
+
+**Timestamp:** 2025-11-02T18:24:47Z
+
+**You:** CODEx flagged that `handleUnifiedGameChange` still carried legacy fallbacks—replace it with the new slug-first flow so Close & Save reloads titles, tags, and themes instantly, then ping ChatGPT-5 about the adjustments.
+
+**GPT:** Swapped in the CODEx routine to derive slug/channel, hydrate from local snapshots, reset editors, and update the header/title/tag state (including document title), then recorded the change here so ChatGPT-5 knows the picker now mirrors the new flow.
