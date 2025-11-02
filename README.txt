@@ -4,6 +4,9 @@ Branch work — 2025-10-14 21:27:31Z
 Device & Response UI Package
 ----------------------------
 ## Update Log
+- 2025-11-01 — Seasonal theme expansion, local update workflow, and Leaflet geo sync. Commit: (pending HEAD)
+  - Direct links: `apps/admin/pages/index.jsx`, `apps/admin/components/Settings/GlobalLocationSelector.jsx`, `apps/admin/lib/find-games.js`, `apps/admin/lib/admin-shared.js`, `apps/admin/styles/globals.css`, `apps/admin/docs/gpt-conversation-log.md`, `README.txt`
+  - Notes: Added a Supabase-free Update button that stores local snapshots with transfer tags, expanded the appearance presets with Christmas, holiday, patriotic, and nature themes backed by remote wallpapers and new fonts, refreshed the Settings geo selector to use Leaflet while syncing mission/device seeds, extended the game dropdown with fallback titles, and logged the ChatGPT-5 pairing for traceability.
 - 2025-10-31 — Legacy theme pack restoration, pets & party skins, and font imports. Commit: (pending HEAD)
   - Direct links: `apps/admin/pages/index.jsx`, `apps/admin/lib/admin-shared.js`, `apps/admin/styles/globals.css`, `apps/admin/docs/gpt-conversation-log.md`, `README.txt`, `apps/admin/public/**`, `apps/game-web/public/**`
   - Notes: Reinstated the chrome/forest/military/cartoon admin skins, added ocean/holiday/seasonal presets plus new party and pet themes with remote art so no binaries touch Git, expanded the appearance font picker with Google Font imports, refreshed the UI theme map wiring, logged the ChatGPT-5 pairing, and reset every game config so "Forest Outpost" replaces the Starfield dawn override across admin + gameplay mirrors.
