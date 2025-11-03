@@ -1,153 +1,140 @@
-// apps/admin/components/GameControls.unified.jsx
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   listDrafts,
-  ensureDefaultDraft,
   makeNewDraft,
   getDraftBySlug,
   upsertDraft,
   deleteDraft,
   slugify,
   ensureUniqueSlug,
-  setDraftCoverImageFromFile,
 } from '../lib/drafts';
-
-// No preview tag, no slug editing UI.
-// "Default" remains slug=default and is always listed.
-// New Game instantly saves; cover image is saved and recalled locally.
 
 const noop = () => {};
 
 export default function GameControlsUnified({
   setHeaderTitle = noop,
   setSlug = noop,
+  setPreviewTag = noop,
   onChange = noop,
-  onCloseAndSave: onCloseAndSaveProp = noop,
+  onCloseAndSave = noop,
 }) {
-  const [drafts, setDrafts] = useState([]);
+  const [drafts, setDrafts] = useState(() => listDrafts());
   const [current, setCurrent] = useState(null);
   const [busy, setBusy] = useState(false);
   const [saveOK, setSaveOK] = useState(false);
   const [error, setError] = useState('');
 
-  // Ensure default on mount, then load list.
-  useEffect(() => {
-    ensureDefaultDraft();
-    const list = listDrafts();
-    setDrafts(list);
-    // If nothing current, select Default first.
-    if (!current && list.length) {
-      setCurrent(list.find(d => d.slug === 'default') || list[0]);
-    }
-  }, []); // eslint-disable-line
+  const refreshDrafts = useCallback(() => {
+    const next = listDrafts();
+    setDrafts(next);
+    return next;
+  }, []);
 
-  // Keep header in sync (no preview tag)
+  useEffect(() => {
+    refreshDrafts();
+    if (typeof window === 'undefined') return undefined;
+    const handler = (event) => {
+      if (event.key && !event.key.startsWith('esxape:drafts:v1')) return;
+      refreshDrafts();
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [refreshDrafts]);
+
+  useEffect(() => {
+    if (!current && drafts.length) {
+      setCurrent(drafts[0]);
+    } else if (current && drafts.every((draft) => draft.slug !== current.slug)) {
+      setCurrent(drafts[0] || null);
+    }
+  }, [drafts, current]);
+
   useEffect(() => {
     if (!current) return;
     setHeaderTitle(current.title);
     setSlug(current.slug);
-  }, [current, setHeaderTitle, setSlug]);
-
-  useEffect(() => {
-    if (!current) return;
-    onChange(`${current.channel || 'draft'}:${current.slug}`, current);
-  }, [current, onChange]);
+    setPreviewTag(current.channel === 'published' ? 'Published' : 'Draft');
+    onChange(
+      `${current.channel === 'published' ? 'published' : 'draft'}:${current.slug}`,
+      current,
+    );
+  }, [current, setHeaderTitle, setSlug, setPreviewTag, onChange]);
 
   const options = useMemo(() => {
-    const opts = drafts.map(d => ({
-      value: d.slug,
-      label: d.slug === 'default' ? `${d.title} (Default)` : d.title,
+    const draftOpts = drafts.map((d) => ({
+      group: d.channel === 'published' ? 'Published' : 'Drafts',
+      value: `${d.channel === 'published' ? 'published' : 'draft'}:${d.slug}`,
+      label: d.title || d.slug,
     }));
-    return opts;
+    return draftOpts.sort((a, b) => a.label.localeCompare(b.label));
   }, [drafts]);
 
-  const selectBySlug = useCallback((slug) => {
+  const selectByValue = useCallback((value) => {
+    if (!value) return;
+    const [, slug] = value.split(':');
     const found = getDraftBySlug(slug);
-    if (found) setCurrent(found);
+    if (found) {
+      setCurrent(found);
+    }
   }, []);
 
   const onNew = useCallback(() => {
-    // Create, save, and select immediately.
-    const d = makeNewDraft('New Game');
-    const list = listDrafts();
-    setDrafts(list);
-    setCurrent(getDraftBySlug(d.slug));
-    setSaveOK(true); setTimeout(() => setSaveOK(false), 900);
-  }, []);
+    const draft = makeNewDraft('New Game');
+    const next = refreshDrafts();
+    setCurrent(next.find((it) => it.slug === draft.slug) || draft);
+  }, [refreshDrafts]);
 
-  const onTitleChange = useCallback((e) => {
+  const onTitleChange = useCallback((event) => {
     if (!current) return;
-    const nextTitle = e.target.value;
-    // Keep slug implicit & stable:
-    // - Default keeps slug "default"
-    // - Others auto-derive once (only if it was identical to prior derivation)
-    let nextSlug = current.slug;
-    if (current.slug !== 'default') {
-      const derived = slugify(nextTitle) || 'untitled';
-      // if current slug looks like it's just the old derived, keep them aligned but unique
-      if (current.slug === slugify(current.title) || current.slug.startsWith(slugify(current.title) + '-')) {
-        nextSlug = ensureUniqueSlug(derived);
-      }
-    }
+    const nextTitle = event.target.value;
+    const base = slugify(nextTitle);
+    const wantedSlug = base || current.slug;
+    const nextSlug = ensureUniqueSlug(current.slug.startsWith('draft-') ? base : wantedSlug, current.slug);
     const updated = upsertDraft({ ...current, title: nextTitle, slug: nextSlug });
     setCurrent(updated);
-    setDrafts(listDrafts());
-    setSaveOK(true); setTimeout(() => setSaveOK(false), 600);
-  }, [current]);
+    refreshDrafts();
+  }, [current, refreshDrafts]);
 
-  const onCoverImageChange = useCallback(async (e) => {
+  const onExplicitSlugEdit = useCallback((event) => {
     if (!current) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy(true); setError('');
-    try {
-      const updated = await setDraftCoverImageFromFile(current.slug, file, { maxDim: 1400 });
-      setCurrent(updated);
-      setDrafts(listDrafts());
-      setSaveOK(true); setTimeout(() => setSaveOK(false), 900);
-    } catch (err) {
-      setError(String(err?.message || err));
-    } finally {
-      setBusy(false);
-      e.target.value = ''; // reset input
-    }
-  }, [current]);
+    const wanted = ensureUniqueSlug(slugify(event.target.value), current.slug);
+    const updated = upsertDraft({ ...current, slug: wanted });
+    setCurrent(updated);
+    refreshDrafts();
+  }, [current, refreshDrafts]);
 
-  const onCloseAndSave = useCallback(async () => {
+  const onSaveDraft = useCallback(async () => {
     if (!current) return;
     setBusy(true);
+    setError('');
     try {
       const saved = upsertDraft(current);
       setCurrent(saved);
-      setDrafts(listDrafts());
-      await onCloseAndSaveProp(saved);
-      setSaveOK(true); setTimeout(() => setSaveOK(false), 1000);
+      refreshDrafts();
+      await onCloseAndSave?.(saved);
+      setSaveOK(true);
+      setTimeout(() => setSaveOK(false), 1200);
     } catch (err) {
       setError(String(err?.message || err));
     } finally {
       setBusy(false);
     }
-  }, [current, onCloseAndSaveProp]);
+  }, [current, onCloseAndSave, refreshDrafts]);
 
-  const onDelete = useCallback(() => {
+  const onDeleteDraft = useCallback(() => {
     if (!current) return;
-    if (current.slug === 'default') {
-      alert('Default cannot be deleted.');
-      return;
-    }
-    if (!confirm(`Delete “${current.title}”? This cannot be undone.`)) return;
+    if (!confirm(`Delete draft "${current.title}"? This cannot be undone.`)) return;
     deleteDraft(current.slug);
-    const next = listDrafts();
-    setDrafts(next);
-    setCurrent(next.find(d => d.slug === 'default') || next[0] || null);
-  }, [current]);
+    const next = refreshDrafts();
+    setCurrent(next[0] || null);
+  }, [current, refreshDrafts]);
 
   const onFirmPublish = useCallback(async () => {
     if (!current) return;
-    if (!confirm(`Firm Publish “${current.title}”? This will go LIVE.`)) return;
-    setBusy(true); setError('');
+    if (!confirm(`Firm Publish "${current.title}"? This will go LIVE.`)) return;
+    setBusy(true);
+    setError('');
     try {
-      // Publish uses Supabase (server) — still the only time we write remotely
       const res = await fetch('/api/publish-game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,33 +142,45 @@ export default function GameControlsUnified({
           title: current.title,
           slug: current.slug,
           payload: current.payload,
-          // cover image will be uploaded later in your publish pipeline; locally we just store dataUrl
         }),
       });
-      if (!res.ok) throw new Error(`Publish failed (${res.status})`);
-      await res.json();
-      // keep local channel labeled draft for now (you may choose to flip it visually)
-      setSaveOK(true); setTimeout(() => setSaveOK(false), 1200);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        const reason = payload?.error ? `: ${payload.error}` : '';
+        throw new Error(`Publish failed (${res.status})${reason}`);
+      }
+      upsertDraft({ ...current, channel: 'published' });
+      const next = refreshDrafts();
+      const updated = next.find((it) => it.slug === current.slug) || {
+        ...current,
+        channel: 'published',
+      };
+      setCurrent(updated);
+      setSaveOK(true);
+      setTimeout(() => setSaveOK(false), 1400);
     } catch (err) {
       setError(String(err?.message || err));
     } finally {
       setBusy(false);
     }
-  }, [current]);
+  }, [current, refreshDrafts]);
 
   return (
     <div className="flex flex-col gap-3 p-3 border rounded-lg" style={{ maxWidth: 900 }}>
       <div className="flex items-center gap-2">
         <label className="font-medium">Saved Games</label>
         <select
-          value={current ? current.slug : ''}
-          onChange={(e) => selectBySlug(e.target.value)}
+          value={current ? `${current.channel === 'published' ? 'published' : 'draft'}:${current.slug}` : ''}
+          onChange={(event) => selectByValue(event.target.value)}
           className="border rounded px-2 py-1"
         >
           {!current && <option value="">— Select —</option>}
           {options.length === 0 && <option value="">(No drafts yet)</option>}
-          {options.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.group === 'Drafts' ? '📝 ' : '🌐 '}
+              {option.label}
+            </option>
           ))}
         </select>
         <button onClick={onNew} className="px-3 py-1 border rounded">+ New Game</button>
@@ -198,47 +197,32 @@ export default function GameControlsUnified({
               className="border rounded px-2 py-1"
               placeholder="Game title"
             />
-            <small className="opacity-70 mt-1">
-              Tag: {current.slug}{current.slug === 'default' ? ' (Default)' : ''}
-            </small>
           </div>
-
           <div className="flex flex-col">
-            <label className="text-sm font-medium">Cover Image</label>
+            <label className="text-sm font-medium">Slug (tag)</label>
             <input
-              type="file"
-              accept="image/*"
-              onChange={onCoverImageChange}
+              type="text"
+              value={current.slug}
+              onChange={onExplicitSlugEdit}
               className="border rounded px-2 py-1"
-              disabled={busy}
+              placeholder="game-slug"
             />
-            {current.coverImage?.dataUrl && (
-              <img
-                src={current.coverImage.dataUrl}
-                alt="Cover"
-                style={{ marginTop: 8, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
-              />
-            )}
           </div>
         </div>
       )}
 
       <div className="flex items-center gap-2">
-        <button onClick={onCloseAndSave} disabled={!current || busy} className="px-3 py-1 border rounded">
+        <button onClick={onSaveDraft} disabled={!current || busy} className="px-3 py-1 border rounded">
           Close &amp; Save Settings
         </button>
         <button onClick={onFirmPublish} disabled={!current || busy} className="px-3 py-1 border rounded bg-blue-50">
           Firm Publish “{current?.title ?? ''}”
         </button>
-        <button onClick={onDelete} disabled={!current || busy} className="px-3 py-1 border rounded border-red-500">
+        <button onClick={onDeleteDraft} disabled={!current || busy} className="px-3 py-1 border rounded border-red-500">
           Delete “{current?.title ?? ''}”
         </button>
         {saveOK && <span className="text-green-600 text-sm">Saved ✓</span>}
         {!!error && <span className="text-red-600 text-sm">Error: {error}</span>}
-      </div>
-
-      <div className="text-xs opacity-70">
-        Local save location: <code>localStorage["esxape:drafts:v1"]</code>
       </div>
     </div>
   );
