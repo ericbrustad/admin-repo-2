@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-07T12:10:00Z
+
+**You:** CODEx needs the admin to write saved-game metadata into `public/games/index.json` whenever we save and to scrub it when games are deleted—wire the GitHub helper into both flows and make sure ChatGPT-5 thinking signs off.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, added a `/api/games/metadata` endpoint that upserts GitHub index entries, updated the Settings save/publish paths to sync metadata after snapshots, and routed deletion through the new helper while warning when the metadata sync fails.
+
+---
+
 **Timestamp:** 2025-11-07T08:20:00Z
 
 **You:** CODEx needs every Saved Game option to share the same metadata and storage so the dropdown never loses entries—normalize the filesystem scan, keep the layout untouched, and make sure title updates still save/delete cleanly with ChatGPT-5 thinking notified.

@@ -3583,6 +3583,50 @@ export default function Admin() {
   /* ── API helpers respecting Default Game (legacy root) ── */
   function isDefaultSlug(slug) { return !slug || slug === 'default'; }
 
+  const syncGamesIndexMetadata = useCallback(
+    async ({ slug, channel, config, createdAt }) => {
+      const rawSlug = isDefaultSlug(slug) ? STARFIELD_CANONICAL_SLUG : slug;
+      const normalizedSlug = (rawSlug || '').toString().trim();
+      if (!normalizedSlug) return;
+      const normalizedChannel = channel === 'published' ? 'published' : 'draft';
+      const gameMeta = config?.game || {};
+      const splash = config?.splash || {};
+      const payload = {
+        slug: normalizedSlug,
+        channel: normalizedChannel,
+        metadata: {
+          title: (gameMeta.title || '').toString().trim() || normalizedSlug,
+          coverImage: (gameMeta.coverImage || '').toString().trim(),
+          shortDescription: (gameMeta.shortDescription || '').toString().trim(),
+          type: (gameMeta.type || '').toString().trim(),
+          mode: (splash.mode || gameMeta.mode || '').toString().trim(),
+        },
+      };
+      const createdAtValue =
+        (createdAt && createdAt.toString().trim()) ||
+        (gameMeta.createdAt && gameMeta.createdAt.toString().trim()) ||
+        '';
+      if (createdAtValue) {
+        payload.metadata.createdAt = createdAtValue;
+      }
+      try {
+        const res = await fetch('/api/games/metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          console.warn('Failed to sync games metadata', text);
+        }
+      } catch (error) {
+        console.warn('Failed to sync games metadata', error);
+      }
+    },
+    [],
+  );
+
   async function saveAllWithSlug(slug, channel = 'draft') {
     if (!suite || !config) return false;
     const normalizedChannel = String(channel || 'draft').toLowerCase() === 'published' ? 'published' : 'draft';
@@ -3597,6 +3641,8 @@ export default function Admin() {
     const slugTag = isDefault ? 'default' : slug;
     const preparedConfig = normalizeGameMetadata(config, slugTag);
     if (preparedConfig !== config) setConfig(preparedConfig);
+
+    const metadataCreatedAt = activeGameMeta?.createdAt || preparedConfig?.game?.createdAt || '';
 
     const supaPayload = {
       slug,
@@ -3659,18 +3705,36 @@ export default function Admin() {
 
     try {
       await attemptSupabase();
+      await syncGamesIndexMetadata({
+        slug,
+        channel: normalizedChannel,
+        config: preparedConfig,
+        createdAt: metadataCreatedAt,
+      });
       setStatus('✅ Saved');
       return true;
     } catch (supaError) {
       console.warn('Supabase save failed, attempting fallback', supaError);
       try {
         await attemptBundle();
+        await syncGamesIndexMetadata({
+          slug,
+          channel: normalizedChannel,
+          config: preparedConfig,
+          createdAt: metadataCreatedAt,
+        });
         setStatus('✅ Saved');
         return true;
       } catch (bundleError) {
         try {
           setStatus('Bundle save unavailable — retrying legacy save…');
           await attemptLegacy();
+          await syncGamesIndexMetadata({
+            slug,
+            channel: normalizedChannel,
+            config: preparedConfig,
+            createdAt: metadataCreatedAt,
+          });
           setStatus('✅ Saved');
           return true;
         } catch (legacyError) {
@@ -3926,6 +3990,12 @@ export default function Admin() {
           },
         };
 
+        const metadataConfig =
+          snapshotWithTags?.data?.config || snapshot?.data?.config || null;
+        const metadataCreatedAt =
+          snapshot?.meta?.createdAt || activeGameMeta?.createdAt || '';
+        const metadataChannel = publish ? 'published' : headerStatus;
+
         if (publish) {
           let handled = false;
           try {
@@ -3956,11 +4026,6 @@ export default function Admin() {
 
           removeLocalSnapshot(slug, 'draft');
           removeLocalSnapshot(slug, 'published');
-          setStatus('✅ Snapshot saved & published');
-          logConversation('GPT', `Saved and published ${slug}`);
-          await reloadGamesList();
-          await refreshGamesIndex();
-          setPreviewNonce((n) => n + 1);
         } else {
           let handled = false;
           try {
@@ -3980,9 +4045,25 @@ export default function Admin() {
             persistLocalSnapshot(slug, headerStatus, snapshotWithTags);
           }
 
+          await refreshGamesIndex();
+        }
+
+        await syncGamesIndexMetadata({
+          slug,
+          channel: metadataChannel,
+          config: metadataConfig,
+          createdAt: metadataCreatedAt,
+        });
+
+        if (publish) {
+          setStatus('✅ Snapshot saved & published');
+          logConversation('GPT', `Saved and published ${slug}`);
+          await reloadGamesList();
+          await refreshGamesIndex();
+          setPreviewNonce((n) => n + 1);
+        } else {
           setStatus('✅ Snapshot saved locally (Supabase untouched)');
           logConversation('GPT', `Local snapshot stored for ${slug} (${headerStatus})`);
-          await refreshGamesIndex();
         }
       } catch (error) {
         const message = error?.message || 'snapshot save failed';
@@ -3994,7 +4075,18 @@ export default function Admin() {
       }
       return success;
     },
-    [activeSlug, getSnapshotFor, headerStatus, logConversation, reloadGamesList, refreshGamesIndex, setPreviewNonce, setStatus],
+    [
+      activeSlug,
+      activeGameMeta?.createdAt,
+      getSnapshotFor,
+      headerStatus,
+      logConversation,
+      reloadGamesList,
+      refreshGamesIndex,
+      setPreviewNonce,
+      setStatus,
+      syncGamesIndexMetadata,
+    ],
   );
 
   const handleSaveAllSettings = useCallback(() => saveFull(false), [saveFull]);
@@ -4074,6 +4166,22 @@ export default function Admin() {
     logConversation('You', `Requested deletion for ${activeSlug || 'default'} game`);
     if (!gameEnabled) { setConfirmDeleteOpen(false); return; }
     const slug = activeSlug || 'default';
+    let metadataDeleteError = '';
+    if (!isDefaultSlug(slug)) {
+      try {
+        const res = await fetch('/api/delete-game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ slug }),
+        });
+        if (!res.ok) {
+          metadataDeleteError = await res.text();
+        }
+      } catch (err) {
+        metadataDeleteError = err?.message || String(err);
+      }
+    }
     const urlTry = [
       `/api/games${qs({ slug: isDefaultSlug(slug) ? '' : slug })}`,
       !isDefaultSlug(slug) ? `/api/game${qs({ slug })}` : null,
@@ -4108,7 +4216,12 @@ export default function Admin() {
     if (ok) {
       await reloadGamesList();
       setActiveSlug('default');
-      setStatus('✅ Game deleted');
+      if (metadataDeleteError) {
+        const warning = metadataDeleteError.replace(/\s+/g, ' ').trim() || 'metadata sync failed';
+        setStatus(`⚠️ Game deleted (metadata sync failed: ${warning})`);
+      } else {
+        setStatus('✅ Game deleted');
+      }
       setPreviewNonce(n => n + 1);
     } else {
       setStatus('❌ Delete failed: ' + (lastErr || 'unknown error'));
