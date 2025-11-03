@@ -251,7 +251,7 @@ export default function CodexDropGameDraftsPanel({
     if (typeof window !== 'undefined'){
       window.dispatchEvent(new CustomEvent('settings:close'));
     }
-  };
+  }, [channel, current, handleSelect, makeList, slug, title]);
 
   // Options
   const options = useMemo(()=>{
@@ -361,18 +361,48 @@ export default function CodexDropGameDraftsPanel({
   );
 }
 
-export function CloseAndSaveSettings({ onSave }) {
+export function useCodexGames() {
+  const [games, setGames] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const reload = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (!hasStorage()) {
+        setGames([]);
+        return;
+      }
+      await ensureRegistryBootstrapped();
+      setGames(readRegistry() || []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load games';
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    reload();
+    if (!hasStorage()) return undefined;
+    const handler = (event) => {
+      const key = event?.key || '';
+      if (!key || key === REG_KEY || key.startsWith('erix:admin:drafts') || key.startsWith('erix:admin:published')) {
+        reload();
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [reload]);
 
   const handleClick = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     try {
-      if (typeof onSave === 'function') {
-        const result = onSave();
-        if (result && typeof result.then === 'function') {
-          await result;
-        }
+      if (onSave) {
+        await onSave();
       }
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('settings:close'));
@@ -396,8 +426,9 @@ export function CloseAndSaveSettings({ onSave }) {
         fontWeight: 800,
         minWidth: 220,
       }}
+      title="Save all settings and close"
     >
-      {busy ? 'Saving…' : 'Close & Save Settings'}
+      {busy ? 'Saving…' : label}
     </button>
   );
 }
