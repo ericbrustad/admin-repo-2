@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-09T13:30:00Z
+
+**You:** CODEx asked for the unified Settings drop-in to live as the global page, keep the repo snapshot footer accurate, and capture the ChatGPT-5 confirmation once the Vercel metadata loads without errors.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, verified the Settings.Global drop-in already powers the admin route with local draft/publish storage, geo defaults, and the repo snapshot footer surfacing repo/branch/commit/deployment plus timestamp, and reran the admin build to ensure no Vercel metadata errors before logging this update.
+
+---
+
 **Timestamp:** 2025-11-09T10:45:00Z
 
 **You:** CODEx dropped the inline-only Settings.Global replacement with localStorage defaults, geo sync, and repo metadata footer—swap it in, retire the legacy unified controls, and capture the ChatGPT-5 thinking confirmation once the page loads clean.
