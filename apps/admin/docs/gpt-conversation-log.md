@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-06T12:45:00Z
+
+**You:** CODEx flagged duplicate slug suffixes after renaming Saved Games and wants the Settings footer to keep repo, branch, commit, deployment, and timestamps visible even offline—refresh the local store and let ChatGPT-5 thinking confirm.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, ignored the active draft while ensuring slug uniqueness, restored cross-tab storage listeners so Default stays pinned, refreshed the selected draft when other tabs update, and kept the repository snapshot footer at the bottom of Settings with fetched/rendered timestamps.
+
+---
+
 **Timestamp:** 2025-11-06T09:15:00Z
 
 **You:** CODEx says the local Saved Games registry still collapses whenever Supabase is offline—swap in the layered local loader with Sync from Public, keep publish/draft toggles working, drop the repo snapshot footer onto Settings, and make sure ChatGPT-5 thinking is logged.
