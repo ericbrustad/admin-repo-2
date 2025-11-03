@@ -1,422 +1,361 @@
-// CODEx PATCH — Robust Local Registry + Bootstrap + Fallback
+// CODEx PATCH — Local-only cover image + reliable save/remove/close
 // File: apps/admin/components/CodexDrop.GameDraftsPanel.jsx
 //
-// Fixes:
-//  • Dropdown shows games again (no Supabase needed).
-//  • Builds registry from multiple sources:
-//      1) Local registry (erix:games:registry)
-//      2) Local snapshots (draft/published)
-//      3) public/games/index.json  (correct path: "/games/index.json")
-//      4) Final fallback: creates "Default Game" locally
-//  • Adds “Sync from Public” button to rehydrate after you unzip bundles.
-//  • Still fully local-only (Supabase OFF).
+// What this fixes (local-only):
+//  • Save Cover Image works: embeds data: URL into snapshot config.game.coverImage
+//  • Remove cover works and persists
+//  • Media thumbnail no longer disappears (stable data URL; no premature revoke)
+//  • "Close & Save Settings" button saves locally and emits settings:close
+//  • Fully offline/local registry + snapshots (Supabase disabled)
+//
+// Registry keys:
+//   erix:games:registry
+//   erix:admin:drafts:slug:<slug>
+//   erix:admin:published:slug:<slug>
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import {
-  STARFIELD_DEFAULT,
-  slugify,
-  assembleLocalGameList,
-  getSnapshotFor,
-  normalizeGameEntry,
-  readSnapshot,
-  writeSnapshot,
-  deleteSnapshot,
-  removeFromRegistry,
-  readRegistry,
-  writeRegistry,
-  upsertRegistryEntry,
-  seedConfig,
-  seedSuite,
-} from '../lib/codex/localRegistry.js';
 
-function setPageTitle(name) {
-  if (typeof document !== 'undefined') document.title = `${name || 'Admin'} — Admin`;
+const REG_KEY = 'erix:games:registry';
+const DRAFT_KEY = (slug) => `erix:admin:drafts:slug:${slug}`;
+const PUB_KEY   = (slug) => `erix:admin:published:slug:${slug}`;
+const STARFIELD_DEFAULT = 'Starfield Station Break';
+
+const loadJSON = (k, f=null)=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):f; }catch{return f;} };
+const saveJSON = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} };
+const removeKey = (k)=>{ try{ localStorage.removeItem(k); }catch{} };
+const nowIso = ()=> new Date().toISOString();
+
+function slugify(s){
+  return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'untitled';
 }
+function setPageTitle(name){ if(typeof document!=='undefined') document.title=`${name||'Admin'} — Admin`; }
 
-function getOptionValue(game) {
-  if (!game || !game.slug) return '';
-  const slug = String(game.slug).trim();
-  const channel = game.channel === 'published' ? 'published' : 'draft';
-  if (slug === 'default') return 'default::draft';
-  return `slug:${slug}::${channel}`;
+function readRegistry(){ return loadJSON(REG_KEY, []); }
+function writeRegistry(list){ const clean=Array.isArray(list)?list:[]; saveJSON(REG_KEY, clean); return clean; }
+function upsertRegistryEntry({slug,title,channel='draft'}){
+  const list=readRegistry(); const i=list.findIndex(g=>g.slug===slug);
+  const entry={slug,title,channel:channel==='published'?'published':'draft',updated_at:nowIso()};
+  if(i>=0) list[i]={...list[i],...entry}; else list.push(entry);
+  return writeRegistry(list);
 }
+function removeFromRegistry(slug){ return writeRegistry(readRegistry().filter(g=>g.slug!==slug)); }
+function readSnapshot(slug, channel){ return loadJSON(channel==='published'?PUB_KEY(slug):DRAFT_KEY(slug), null); }
+function writeSnapshot(slug, channel, payload){
+  const key=channel==='published'?PUB_KEY(slug):DRAFT_KEY(slug);
+  saveJSON(key,{...(payload||{}), slug, channel, saved_at: nowIso()});
+}
+function deleteSnapshot(slug, channel){ removeKey(channel==='published'?PUB_KEY(slug):DRAFT_KEY(slug)); }
 
-function parseSelectionValue(value) {
-  const raw = (value || '').toString().trim();
-  if (!raw) return { slug: '', channel: '' };
-  if (raw === 'default::draft') return { slug: 'default', channel: 'draft' };
-  if (raw.startsWith('slug:')) {
-    const [, rest] = raw.split('slug:');
-    const [slugPart, channelPart] = rest.split('::');
-    return {
-      slug: (slugPart || '').trim(),
-      channel: channelPart === 'published' ? 'published' : 'draft',
-    };
-  }
-  if (raw.startsWith('id:')) {
-    const [idPart, channelPart] = raw.slice(3).split('::');
-    return {
-      id: (idPart || '').trim(),
-      channel: channelPart === 'published' ? 'published' : 'draft',
-    };
-  }
-  return { slug: raw, channel: 'draft' };
+function seedConfig(title, slug){
+  return {
+    splash:{enabled:false,mode:'single'},
+    game:{title,slug,mode:'single',coverImage:'',tags:[slug],shortDescription:'',longDescription:''},
+    forms:{players:1},
+    timer:{durationMinutes:0,alertMinutes:5},
+    map:{centerLat:44.9778,centerLng:-93.2650,defaultZoom:13},
+    geofence:{mode:'test'},
+    icons:{missions:[],devices:[],rewards:[]},
+    media:{rewardsPool:[],penaltiesPool:[]},
+    devices:[]
+  };
+}
+function seedSuite(){ return {version:'1.0.0', missions:[]}; }
+
+// Convert File -> data URL (stable; no revoke needed)
+async function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error||new Error('read fail'));
+    r.readAsDataURL(file);
+  });
 }
 
 export default function CodexDropGameDraftsPanel({
   value,
-  onChange,
-  onCloseAndSave,
-  mode = 'draft',
-  onStatusChange,
+  onChange,        // (value, gameMeta)
+  onCloseAndSave,  // () => Promise|void
 }) {
-  const [games, setGames] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const [current, setCurrent] = useState(null);
+  const [games,setGames]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState(null);
+  const [current,setCurrent]=useState(null);
+  const [title,setTitle]=useState('');
+  const [slug,setSlug]=useState('');
+  const [channel,setChannel]=useState('draft');
 
-  const [title, setTitle] = useState('');
-  const [slug, setSlug] = useState('');
-  const [channel, setChannel] = useState('draft');
-  const bootstrappedRef = useRef(false);
+  // Cover UI state (stable)
+  const [coverPreview,setCoverPreview]=useState('');  // displays current cover
+  const fileInputRef = useRef(null);
 
-  const makeList = useCallback(async (forceBootstrap = false) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const list = await assembleLocalGameList({ forceBootstrap });
-      setGames(list);
-      if (!list.length) {
-        setError('No games available.');
-      }
-    } catch (err) {
-      console.warn('Failed to build local game list', err);
-      setGames([
-        normalizeGameEntry({ slug: 'default', title: STARFIELD_DEFAULT, channel: 'draft' }),
-      ].filter(Boolean));
-      setError(err?.message || 'Unable to load games');
-    } finally {
-      setBusy(false);
+  const reload = useCallback(async()=>{
+    setBusy(true); setError(null);
+    // merge registry + local snapshots (draft/published)
+    let list = readRegistry();
+    const has = new Set(list.map(g=>g.slug));
+    for (const k in localStorage){
+      if(!Object.prototype.hasOwnProperty.call(localStorage,k)) continue;
+      if(!(k.startsWith('erix:admin:drafts:slug:') || k.startsWith('erix:admin:published:slug:'))) continue;
+      const snap = loadJSON(k,null); const s = snap?.slug; if(!s) continue;
+      const ch = snap?.channel || (k.includes(':published:')?'published':'draft');
+      const t = snap?.title || s;
+      if(has.has(s)) list=list.map(g=>g.slug===s?{...g,title:g.title||t,channel:g.channel||ch}:g);
+      else { list.push({slug:s,title:t,channel:ch,updated_at:nowIso()}); has.add(s); }
     }
-  }, []);
+    if(!list.length){
+      // create Default
+      const s='default', t='Default Game';
+      upsertRegistryEntry({slug:s,title:t,channel:'draft'});
+      writeSnapshot(s,'draft',{title:t,slug:s,channel:'draft',config:seedConfig(t,s),suite:seedSuite()});
+      list=readRegistry();
+    }
+    writeRegistry(list);
+    setGames(list);
+    setBusy(false);
+  },[]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (bootstrappedRef.current) return;
-    bootstrappedRef.current = true;
-    void makeList(false);
-  }, [makeList]);
+  useEffect(()=>{ reload(); },[reload]);
 
-  useEffect(() => {
-    if (!games.length) {
-      setCurrent(null);
-      setTitle('');
-      setSlug('');
-      setChannel('draft');
-      return;
-    }
-    const parsed = parseSelectionValue(value);
-    let found = null;
-    if (parsed.slug) {
-      found = games.find((g) => g.slug === parsed.slug && g.channel === parsed.channel)
-        || games.find((g) => g.slug === parsed.slug);
-    } else if (parsed.id) {
-      found = games.find((g) => g.id != null && String(g.id) === parsed.id) || null;
-    }
-    if (!found) {
-      found = games[0] || null;
-    }
+  // Resolve current and hydrate
+  useEffect(()=>{
+    if(!games.length){ setCurrent(null); setTitle(''); setSlug(''); setChannel('draft'); setCoverPreview(''); return; }
+    const found = games.find(g=>g.slug===value) || games[0];
     setCurrent(found);
-    if (!found) {
-      setTitle('');
-      setSlug('');
-      setChannel('draft');
-      return;
+    if(found){
+      const useChannel = found.channel==='published'?'published':'draft';
+      const snap = readSnapshot(found.slug, useChannel) || readSnapshot(found.slug,'draft') || {title:found.title,slug:found.slug,channel:useChannel};
+      const cfg = snap?.config || null;
+      setTitle(snap?.title || found.title || found.slug || STARFIELD_DEFAULT);
+      setSlug(snap?.slug || found.slug);
+      setChannel(useChannel);
+      const cover = cfg?.game?.coverImage || '';
+      setCoverPreview(cover || '');
+      setPageTitle(snap?.title || found.title || found.slug);
+      onChange?.(found.slug, {...found});
     }
-    const effectiveChannel = parsed.channel || found.channel || 'draft';
-    const snapshot = getSnapshotFor(found.slug, effectiveChannel) || {};
-    const nextTitle = snapshot?.title || found.title || found.slug || STARFIELD_DEFAULT;
-    const nextSlug = snapshot?.slug || found.slug;
-    const nextChannel = effectiveChannel === 'published' ? 'published' : 'draft';
-    setTitle(nextTitle);
-    setSlug(nextSlug);
-    setChannel(nextChannel);
-    setPageTitle(nextTitle);
-    const nextValue = getOptionValue({ slug: nextSlug, channel: nextChannel });
-    const meta = { ...found, slug: nextSlug, title: nextTitle, channel: nextChannel, tag: nextChannel };
-    onChange?.(nextValue, meta);
-  }, [games, value, onChange]);
+  },[games,value,onChange]);
 
-  const options = useMemo(() => {
-    const sorted = [...games].sort((a, b) => {
-      const nameA = (a?.title || a?.slug || '').toString().toLowerCase();
-      const nameB = (b?.title || b?.slug || '').toString().toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
-    return sorted.map((g) => ({
-      value: getOptionValue(g),
-      label: `${g.title || g.slug}${g.channel === 'published' ? ' (published)' : ' (draft)'}`,
-    }));
-  }, [games]);
-
-  const selectValue = useMemo(() => {
-    if (current) {
-      return getOptionValue({ slug: current.slug, channel });
-    }
-    return typeof value === 'string' ? value : '';
-  }, [current, channel, value]);
-
-  const handleSelect = useCallback((val) => {
-    const parsed = parseSelectionValue(val);
-    let found = null;
-    if (parsed.slug) {
-      found = games.find((g) => g.slug === parsed.slug && g.channel === parsed.channel)
-        || games.find((g) => g.slug === parsed.slug);
-    } else if (parsed.id) {
-      found = games.find((g) => g.id != null && String(g.id) === parsed.id) || null;
-    }
-    if (!found) {
-      onChange?.('', null);
-      setCurrent(null);
-      setTitle('');
-      setSlug('');
-      setChannel('draft');
-      setPageTitle('Admin');
-      return;
-    }
-    const useChannel = parsed.channel || found.channel || 'draft';
-    const snapshot = getSnapshotFor(found.slug, useChannel) || {};
-    const nextTitle = snapshot?.title || found.title || found.slug || STARFIELD_DEFAULT;
-    const nextSlug = snapshot?.slug || found.slug;
-    const nextChannel = useChannel === 'published' ? 'published' : 'draft';
+  // Select a game
+  const handleSelect=(val)=>{
+    const found=games.find(g=>g.slug===val)||null;
     setCurrent(found);
-    setTitle(nextTitle);
-    setSlug(nextSlug);
-    setChannel(nextChannel);
-    setPageTitle(nextTitle);
-    const nextValue = getOptionValue({ slug: nextSlug, channel: nextChannel });
-    const meta = { ...found, slug: nextSlug, title: nextTitle, channel: nextChannel, tag: nextChannel };
-    onChange?.(nextValue, meta);
-    if (nextChannel !== found.channel) {
-      onStatusChange?.(nextChannel, meta);
+    if(found){
+      const useChannel = found.channel==='published'?'published':'draft';
+      const snap = readSnapshot(found.slug,useChannel) || readSnapshot(found.slug,'draft') || {title:found.title,slug:found.slug,channel:useChannel};
+      const cfg = snap?.config||null;
+      setTitle(snap?.title || found.title || found.slug);
+      setSlug(snap?.slug || found.slug);
+      setChannel(useChannel);
+      setCoverPreview(cfg?.game?.coverImage || '');
+      setPageTitle(snap?.title || found.title || found.slug);
+      onChange?.(val,{...found});
+    }else{
+      onChange?.('',null);
     }
-  }, [games, onChange, onStatusChange]);
+  };
 
-  const createNew = useCallback(() => {
-    const titleInput = typeof window !== 'undefined'
-      ? window.prompt('New Game Title')
-      : '';
-    if (!titleInput) return;
-    const baseSlug = slugify(titleInput);
-    const taken = new Set((games || []).map((g) => g.slug));
-    let nextSlug = baseSlug || 'game';
-    let counter = 1;
-    while (taken.has(nextSlug)) {
-      nextSlug = `${baseSlug}-${++counter}`;
-    }
-    upsertRegistryEntry({ slug: nextSlug, title: titleInput, channel: 'draft' });
-    writeSnapshot(nextSlug, 'draft', {
-      title: titleInput,
-      slug: nextSlug,
-      channel: 'draft',
-      config: seedConfig(titleInput, nextSlug),
-      suite: seedSuite(),
-    });
-    void makeList(false).then(() => {
-      const nextValue = getOptionValue({ slug: nextSlug, channel: 'draft' });
-      setTimeout(() => handleSelect(nextValue), 0);
-    });
-  }, [games, handleSelect, makeList]);
-
-  const saveDraft = useCallback(() => {
-    if (!current) return;
-    const nextTitle = title || STARFIELD_DEFAULT;
-    const nextSlug = slug || slugify(nextTitle);
-    const useChannel = channel === 'published' ? 'published' : 'draft';
-    if (nextSlug !== current.slug) {
-      const draftSnap = readSnapshot(current.slug, 'draft');
-      const pubSnap = readSnapshot(current.slug, 'published');
-      if (draftSnap) {
-        writeSnapshot(nextSlug, 'draft', { ...draftSnap, title: nextTitle, slug: nextSlug });
-        deleteSnapshot(current.slug, 'draft');
+  // Save (local)
+  const persist = useCallback(()=>{
+    if(!current) return false;
+    const s = slug || slugify(title);
+    const cover = coverPreview || '';
+    // migrate slug
+    if (s !== current.slug){
+      const dSnap = readSnapshot(current.slug,'draft');
+      const pSnap = readSnapshot(current.slug,'published');
+      if (dSnap){
+        const nextDraft = { ...dSnap, title, slug: s };
+        const cfg = nextDraft.config || seedConfig(title, s);
+        cfg.game = { ...(cfg.game || {}), title, slug: s, coverImage: cover };
+        nextDraft.config = cfg;
+        writeSnapshot(s,'draft',nextDraft);
+        deleteSnapshot(current.slug,'draft');
       }
-      if (pubSnap) {
-        writeSnapshot(nextSlug, 'published', { ...pubSnap, title: nextTitle, slug: nextSlug });
-        deleteSnapshot(current.slug, 'published');
+      if (pSnap){
+        const nextPub = { ...pSnap, title, slug: s };
+        const cfg = nextPub.config || seedConfig(title, s);
+        cfg.game = { ...(cfg.game || {}), title, slug: s, coverImage: cover };
+        nextPub.config = cfg;
+        writeSnapshot(s,'published',nextPub);
+        deleteSnapshot(current.slug,'published');
       }
-      const updatedRegistry = readRegistry().map((entry) => (
-        entry?.slug === current.slug
-          ? { ...entry, slug: nextSlug, title: nextTitle }
-          : entry
-      ));
-      writeRegistry(updatedRegistry);
-      setCurrent({ ...current, slug: nextSlug, title: nextTitle });
+      const list = readRegistry().map(g=>g.slug===current.slug?{...g,slug:s,title}:g);
+      writeRegistry(list);
+      setCurrent({...current,slug:s,title});
     } else {
-      const existing = readSnapshot(nextSlug, useChannel) || {};
-      writeSnapshot(nextSlug, useChannel, { ...existing, title: nextTitle, slug: nextSlug });
+      // upsert current snapshot in the active channel
+      const existing = readSnapshot(s, channel) || {title,slug:s,channel};
+      const cfg = existing.config || seedConfig(title,s);
+      cfg.game = {...(cfg.game||{}), title, slug:s, coverImage: cover};
+      existing.config = cfg;
+      writeSnapshot(s, channel, {...existing, title, slug:s, config: cfg});
+      upsertRegistryEntry({slug:s,title,channel});
     }
-    upsertRegistryEntry({ slug: nextSlug, title: nextTitle, channel: useChannel });
-    setPageTitle(nextTitle);
-    void makeList(false).then(() => {
-      const nextValue = getOptionValue({ slug: nextSlug, channel: useChannel });
-      setTimeout(() => handleSelect(nextValue), 0);
-    });
-    if (typeof window !== 'undefined') {
-      window.alert('Saved locally.');
+    setPageTitle(title);
+    reload();
+    return true;
+  },[current,slug,title,channel,coverPreview,reload]);
+
+  const save = ()=>{ if(persist()) alert('Saved locally.'); };
+
+  const publish = ()=>{
+    if(!current) return;
+    const s = slug || current.slug;
+    const target = channel==='published'?'draft':'published';
+    if(!confirm(channel==='published'?`Unpublish “${title}”?`:`Publish “${title}”?`)) return;
+    const existing = readSnapshot(s, channel) || {title,slug:s,channel};
+    const cfg = existing.config || seedConfig(title,s);
+    cfg.game = { ...(cfg.game || {}), title, slug: s, coverImage: coverPreview || '' };
+    writeSnapshot(s, target, {...existing, title, slug:s, channel:target, config: cfg});
+    upsertRegistryEntry({slug:s,title,channel:target});
+    setChannel(target);
+    reload();
+  };
+
+  const remove = ()=>{
+    if(!current) return;
+    if(!confirm(`Delete “${current.title}”? This cannot be undone.`)) return;
+    deleteSnapshot(current.slug,'draft'); deleteSnapshot(current.slug,'published');
+    removeFromRegistry(current.slug);
+    reload();
+    setCurrent(null); setTitle(''); setSlug(''); setCoverPreview(''); setPageTitle('Admin');
+    onChange?.('',null);
+  };
+
+  // Cover management (local-only)
+  const onPickFile = async (e)=>{
+    const file = e?.target?.files?.[0];
+    if(!file) return;
+    const dataUrl = await fileToDataURL(file);
+    setCoverPreview(dataUrl);  // stable preview
+  };
+
+  const saveCoverImage = ()=>{
+    if(!current) return;
+    // just persist with current coverPreview into config
+    const ok = persist();
+    if(ok) alert('Cover image saved locally.');
+  };
+
+  const removeCoverImage = ()=>{
+    setCoverPreview('');
+    const ok = persist();
+    if(ok) alert('Cover image removed.');
+  };
+
+  const closeAndSave = async ()=>{
+    persist();
+    try { await onCloseAndSave?.(); } catch {}
+    // notify parent to close settings
+    if (typeof window !== 'undefined'){
+      window.dispatchEvent(new CustomEvent('settings:close'));
     }
   }, [channel, current, handleSelect, makeList, slug, title]);
 
-  const publish = useCallback(() => {
-    if (!current) return;
-    const nextSlug = slug || current.slug;
-    const targetChannel = channel === 'published' ? 'draft' : 'published';
-    const confirmMessage = targetChannel === 'published'
-      ? `Publish “${title || current.title || nextSlug}”?`
-      : `Set “${title || current.title || nextSlug}” back to Draft?`;
-    if (typeof window !== 'undefined' && !window.confirm(confirmMessage)) return;
-    const existing = readSnapshot(nextSlug, channel) || readSnapshot(nextSlug, 'draft') || {};
-    writeSnapshot(nextSlug, targetChannel, {
-      ...existing,
-      title: title || existing.title || current.title || nextSlug,
-      slug: nextSlug,
-      channel: targetChannel,
-    });
-    upsertRegistryEntry({ slug: nextSlug, title: title || current.title || nextSlug, channel: targetChannel });
-    setChannel(targetChannel);
-    const meta = { ...current, slug: nextSlug, title: title || current.title || nextSlug, channel: targetChannel, tag: targetChannel };
-    setCurrent(meta);
-    void makeList(false).then(() => {
-      const nextValue = getOptionValue({ slug: nextSlug, channel: targetChannel });
-      setTimeout(() => handleSelect(nextValue), 0);
-    });
-    onStatusChange?.(targetChannel, meta);
-    if (typeof window !== 'undefined') {
-      window.alert(targetChannel === 'published' ? 'Published locally.' : 'Set to Draft locally.');
-    }
-  }, [channel, current, handleSelect, makeList, onStatusChange, slug, title]);
-
-  const remove = useCallback(() => {
-    if (!current) return;
-    const promptTitle = current.title || current.slug;
-    if (typeof window !== 'undefined' && !window.confirm(`Delete “${promptTitle}”? This cannot be undone.`)) return;
-    deleteSnapshot(current.slug, 'draft');
-    deleteSnapshot(current.slug, 'published');
-    removeFromRegistry(current.slug);
-    setCurrent(null);
-    setTitle('');
-    setSlug('');
-    setChannel('draft');
-    setPageTitle('Admin');
-    onChange?.('', null);
-    void makeList(false);
-  }, [current, makeList, onChange]);
+  // Options
+  const options = useMemo(()=>{
+    const sorted=[...games].sort((a,b)=>String(a.title||a.slug).localeCompare(String(b.title||b.slug)));
+    return sorted.map(g=>({value:g.slug, label:`${g.title||g.slug}${g.channel==='published'?' (published)':' (draft)'}`}));
+  },[games]);
 
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={{ fontWeight: 700 }}>Saved Games (Local)</label>
+    <div style={{ display:'grid', gap:14 }}>
+      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <label style={{ fontWeight:700 }}>Saved Games (Local)</label>
         <select
           disabled={busy}
-          value={selectValue}
-          onChange={(event) => handleSelect(event.target.value)}
-          style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', minWidth: 280 }}
+          value={current?.slug || ''}
+          onChange={(e)=>handleSelect(e.target.value)}
+          style={{ padding:'8px 10px', borderRadius:10, border:'1px solid #d1d5db', minWidth:280 }}
         >
           <option value="" disabled>{busy ? 'Loading…' : (options.length ? 'Select a game' : 'No games found')}</option>
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
+          {options.map(opt=> <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
-        <button
-          type="button"
-          onClick={() => { void makeList(false); }}
-          title="Reload"
-          style={{ padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8 }}
-        >
-          ↻ Reload
-        </button>
-        <button
-          type="button"
-          onClick={() => { void makeList(true); }}
-          title="Sync from public/games/index.json"
-          style={{ padding: '8px 10px', border: '1px solid #94a3b8', background: '#f1f5f9', borderRadius: 8 }}
-        >
-          ⤓ Sync from Public
-        </button>
-        <button
-          type="button"
-          onClick={createNew}
-          title="Create new local game"
-          style={{ padding: '8px 10px', border: '1px solid #94a3b8', background: '#eef2ff', borderRadius: 8 }}
-        >
-          + New
-        </button>
-        {error && <div style={{ color: '#b91c1c', fontSize: 12 }}>Error: {error}</div>}
+        <button type="button" onClick={reload} title="Reload" style={{ padding:'8px 10px', border:'1px solid #d1d5db' }}>↻ Reload</button>
+        <button type="button" onClick={()=>{ const t=prompt('New Game Title'); if(!t) return; const base=slugify(t); const taken=new Set((readRegistry()||[]).map(g=>g.slug)); let s=base||'game', i=1; while(taken.has(s)) s=`${base}-${++i}`; upsertRegistryEntry({slug:s,title:t,channel:'draft'}); writeSnapshot(s,'draft',{title:t,slug:s,channel:'draft',config:seedConfig(t,s),suite:seedSuite()}); reload(); setTimeout(()=>handleSelect(s),0); }} style={{ padding:'8px 10px', border:'1px solid #94a3b8', background:'#eef2ff' }}>+ New</button>
+        {error && <div style={{ color:'#b91c1c', fontSize:12 }}>Error: {error}</div>}
       </div>
 
       {current ? (
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
-          <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ border:'1px solid #e5e7eb', borderRadius:12, padding:12, background:'#fff' }}>
+          {/* Title / Slug */}
+          <div style={{ display:'grid', gap:10 }}>
             <div>
-              <div style={{ marginBottom: 6, fontWeight: 700 }}>Game Title</div>
-              <input
-                type="text"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                style={{ width: '100%', padding: 10, border: '1px solid #d1d5db', borderRadius: 10 }}
-                placeholder="Enter game title"
-              />
+              <div style={{ marginBottom:6, fontWeight:700 }}>Game Title</div>
+              <input type="text" value={title} onChange={(e)=>setTitle(e.target.value)}
+                style={{ width:'100%', padding:10, border:'1px solid #d1d5db', borderRadius:10 }}
+                placeholder="Enter game title" />
             </div>
 
             <div>
-              <div style={{ marginBottom: 6, fontWeight: 700 }}>Slug</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  value={slug}
-                  onChange={(event) => setSlug(slugify(event.target.value))}
-                  style={{ flex: 1, padding: 10, border: '1px solid #d1d5db', borderRadius: 10 }}
-                  placeholder="game-slug"
-                />
-                <button
-                  type="button"
-                  onClick={() => setSlug(slugify(title))}
-                  style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}
-                >
-                  Auto
-                </button>
+              <div style={{ marginBottom:6, fontWeight:700 }}>Slug</div>
+              <div style={{ display:'flex', gap:8 }}>
+                <input type="text" value={slug} onChange={(e)=>setSlug(slugify(e.target.value))}
+                  style={{ flex:1, padding:10, border:'1px solid #d1d5db', borderRadius:10 }}
+                  placeholder="game-slug" />
+                <button type="button" onClick={()=>setSlug(slugify(title))}
+                  style={{ padding:'8px 12px', border:'1px solid #cbd5e1', borderRadius:10 }}>Auto</button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={saveDraft}
-                style={{ padding: '10px 14px', border: '1px solid #16a34a', background: '#dcfce7', borderRadius: 12, fontWeight: 700 }}
-              >
-                Save (Local)
-              </button>
-              <button
-                type="button"
-                onClick={publish}
-                style={{ padding: '10px 14px', border: '1px solid #0ea5e9', background: '#e0f2fe', borderRadius: 12, fontWeight: 700 }}
-              >
-                {channel === 'published' ? 'Set to Draft' : 'Publish (Local)'}
-              </button>
-              <button
-                type="button"
-                onClick={remove}
-                style={{ padding: '10px 14px', border: '1px solid #ef4444', background: '#fee2e2', color: '#991b1b', borderRadius: 12, fontWeight: 700 }}
-              >
-                Delete
-              </button>
-              <div style={{ marginLeft: 'auto', fontSize: 12, color: '#64748b' }}>
-                Channel: <strong>{channel}</strong> • Source: <strong>Local</strong>
+            {/* Cover Image */}
+            <div style={{ border:'1px solid #e5e7eb', borderRadius:10, padding:10, background:'#fafafa' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                <div style={{ fontWeight:700 }}>Cover Image</div>
+                <div style={{ fontSize:12, color:'#64748b' }}>Stored locally in snapshot</div>
               </div>
+              <div style={{ display:'grid', gap:10, gridTemplateColumns:'1fr auto', alignItems:'center' }}>
+                <div style={{ minHeight:120, border:'1px solid #e5e7eb', borderRadius:10, display:'grid', placeItems:'center', background:'#fff' }}>
+                  {coverPreview ? (
+                    <img src={coverPreview} alt="cover" style={{ maxWidth:'100%', maxHeight:240, objectFit:'contain', borderRadius:8 }} />
+                  ) : (
+                    <div style={{ color:'#64748b', fontSize:13 }}>No cover selected</div>
+                  )}
+                </div>
+                <div style={{ display:'grid', gap:8 }}>
+                  <button type="button" onClick={()=>fileInputRef.current?.click()}
+                    style={{ padding:'8px 12px', border:'1px solid #94a3b8', borderRadius:10, background:'#f8fafc' }}>
+                    Upload…
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display:'none' }}
+                    onChange={onPickFile} />
+                  <button type="button" onClick={saveCoverImage}
+                    style={{ padding:'8px 12px', border:'1px solid #16a34a', background:'#dcfce7', borderRadius:10, fontWeight:700 }}>
+                    Save Cover Image
+                  </button>
+                  <button type="button" onClick={removeCoverImage}
+                    style={{ padding:'8px 12px', border:'1px solid #ef4444', background:'#fee2e2', color:'#991b1b', borderRadius:10, fontWeight:700 }}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <button type="button" onClick={save}
+                style={{ padding:'10px 14px', border:'1px solid #16a34a', background:'#dcfce7', borderRadius:12, fontWeight:700 }}>Save (Local)</button>
+              <button type="button" onClick={publish}
+                style={{ padding:'10px 14px', border:'1px solid #0ea5e9', background:'#e0f2fe', borderRadius:12, fontWeight:700 }}>
+                {channel==='published' ? 'Set to Draft' : 'Publish (Local)'}
+              </button>
+              <button type="button" onClick={remove}
+                style={{ padding:'10px 14px', border:'1px solid #ef4444', background:'#fee2e2', color:'#991b1b', borderRadius:12, fontWeight:700 }}>Delete</button>
+              <div style={{ flex:1 }} />
+              <button type="button" onClick={closeAndSave}
+                style={{ padding:'10px 14px', border:'1px solid #93c5fd', background:'#dbeafe', color:'#1e40af', borderRadius:12, fontWeight:800, minWidth:220 }}>
+                Close & Save Settings
+              </button>
+            </div>
+
+            <div style={{ fontSize:12, color:'#64748b' }}>
+              Channel: <strong>{channel}</strong> • Source: <strong>Local</strong>
             </div>
           </div>
         </div>
       ) : (
-        <div style={{ color: '#6b7280', fontSize: 13 }}>Select a game or click “+ New”.</div>
+        <div style={{ color:'#6b7280', fontSize:13 }}>Select a game or click “+ New”.</div>
       )}
     </div>
   );

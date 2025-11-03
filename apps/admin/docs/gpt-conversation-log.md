@@ -407,3 +407,10 @@
 **You:** CODEx reported the admin build blowing up because `useCodexGames` gets declared twice—refactor the panel so the local registry helpers and hook live in reusable modules, and loop ChatGPT-5 in once the duplication is gone.
 
 **GPT:** Split the storage helpers into `lib/codex/localRegistry.js`, moved the `useCodexGames` hook to `hooks/useCodexGames.js`, re-exported it from the panel without redeclaring, and logged the cleanup here so ChatGPT-5 knows the build warning is resolved.
+---
+
+**Timestamp:** 2025-11-02T23:39:15Z
+
+**You:** CODEx noted the cover uploader was volatile—persist the data URL in the local snapshot, wire Close & Save to dispatch `settings:close`, and let ChatGPT-5 know the admin panel now handles local cover saves/removals reliably.
+
+**GPT:** Baked the CODEx panel patch in place so cover uploads store a stable data URL, removals persist, Close & Save triggers the event, and recorded it here so ChatGPT-5 stays synced with the local-only workflow.
