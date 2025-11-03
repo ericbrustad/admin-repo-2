@@ -540,3 +540,11 @@
 **You:** CODEx asked for a unified game filesystem that preserves the legacy JSON plus the new local drafts—copy every game's metadata into a fresh structure the Settings buttons can use, drop the old `public/games` dependency, and update the footer so ChatGPT-5 can see the repo snapshot at a glance.
 
 **GPT:** Confirmed with ChatGPT-5 thinking, generated the `public/game-data` tree with merged metadata + channel copies, wired `find-games`, the load/save APIs, and the local draft store to hydrate from the new catalog module, refreshed the delete/list helpers, and extended the Settings footer with an explicit Dev Build line so the repo/branch/commit/deployment stamp stays visible at the bottom of Settings.
+
+---
+
+**Timestamp:** 2025-11-08T16:05:00Z
+
+**You:** CODEx pointed out that the Settings Save/Delete buttons still lean on the legacy storage paths—replace them with the new `lib/gameDrafts` helpers so legacy and modern drafts share one path, keep the repo metadata footer intact, and log it for ChatGPT-5.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, dropped the legacy snapshot/index code from Settings, wired the Save/Delete flow to the shared `gameDrafts` module so drafts and metadata share the same path, kept the footer snapshot visible with repo/branch/commit/deployment plus timestamp, and tested the local draft manager before noting it here.
