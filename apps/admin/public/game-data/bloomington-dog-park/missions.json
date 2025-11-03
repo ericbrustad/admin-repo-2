@@ -1,0 +1,35 @@
+{
+  "id": "msuite_bloomington_dog_park",
+  "version": "1.0.0",
+  "flow": {
+    "mode": "linear",
+    "start": "m01"
+  },
+  "missions": [
+    {
+      "id": "m01",
+      "title": "Fetch Quest",
+      "type": "multiple_choice",
+      "rewards": {
+        "points": 25
+      },
+      "content": {
+        "question": "What color collar is on the missing dog at Bloomington Dog Park?",
+        "choices": [
+          "Red",
+          "Blue",
+          "Green",
+          "Yellow"
+        ],
+        "correctIndex": 1,
+        "hint": "The pond reflection shows it clearly.",
+        "mediaUrl": "/media/missions/dog-collar.jpg",
+        "geofenceEnabled": true,
+        "lat": 44.8325,
+        "lng": -93.314,
+        "radiusMeters": 50,
+        "cooldownSeconds": 30
+      }
+    }
+  ]
+}

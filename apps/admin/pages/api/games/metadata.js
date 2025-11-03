@@ -11,7 +11,7 @@ const BRANCH =
   process.env.COMMIT_REF ||
   'main';
 
-const INDEX_PATH = 'public/games/index.json';
+const INDEX_PATH = 'public/game-data/index.json';
 
 function normalizeSlug(value) {
   const raw = (value || '').toString().trim();
@@ -81,6 +81,43 @@ async function writeIndex(list, sha) {
   });
 }
 
+async function loadMetadataFile(slug) {
+  const path = `public/game-data/${slug}/metadata.json`;
+  try {
+    const json = await githubRequest(path);
+    const content = Buffer.from(json.content || '', 'base64').toString('utf8');
+    const data = JSON.parse(content || '{}');
+    return { data, sha: json.sha || null, path };
+  } catch (error) {
+    if (error.message && /404/.test(error.message)) {
+      return { data: {}, sha: null, path };
+    }
+    throw error;
+  }
+}
+
+async function writeMetadataFile(slug, entry) {
+  const { data: existing, sha, path } = await loadMetadataFile(slug);
+  const next = {
+    ...(existing || {}),
+    ...entry,
+    slug,
+    updatedAt: new Date().toISOString(),
+  };
+  const body = JSON.stringify(next, null, 2);
+  const payload = {
+    message: `chore: update metadata for ${slug}`,
+    content: Buffer.from(body, 'utf8').toString('base64'),
+    branch: BRANCH,
+  };
+  if (sha) payload.sha = sha;
+  await githubRequest(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -142,6 +179,31 @@ export default async function handler(req, res) {
     }
 
     await writeIndex(normalizedList, sha);
+
+    const summaryDescription =
+      typeof metadataInput.description === 'string' && metadataInput.description
+        ? metadataInput.description
+        : (typeof metadataInput.longDescription === 'string' ? metadataInput.longDescription : '');
+    const summaryTags = Array.isArray(metadataInput.tags)
+      ? metadataInput.tags
+      : Array.isArray(metadataInput.summary?.tags)
+        ? metadataInput.summary.tags
+        : [];
+
+    await writeMetadataFile(slug, {
+      title,
+      coverImage,
+      shortDescription,
+      type,
+      mode,
+      channel,
+      createdAt,
+      summary: {
+        description: summaryDescription,
+        shortDescription,
+        tags: summaryTags,
+      },
+    });
 
     res.status(200).json({ ok: true, entry: nextEntry, gameProjectEnabled: GAME_ENABLED });
   } catch (error) {

@@ -1,0 +1,62 @@
+{
+  "slug": "newbie",
+  "title": "Newbie",
+  "coverImage": "",
+  "shortDescription": "Intro mission that walks new handlers through the control deck basics.",
+  "longDescription": "",
+  "type": "Thriller",
+  "mode": "single",
+  "tags": [
+    "newbie"
+  ],
+  "createdAt": "2024-01-15T09:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "Intro mission that walks new handlers through the control deck basics.",
+    "tags": [
+      "newbie"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "newbie",
+      "title": "Newbie",
+      "type": "Thriller",
+      "mode": "single",
+      "coverImage": "",
+      "shortDescription": "Intro mission that walks new handlers through the control deck basics.",
+      "channel": "draft",
+      "createdAt": "2024-01-15T09:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Newbie",
+      "type": "Thriller",
+      "tags": [
+        "newbie"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "Newbie",
+      "type": "Thriller",
+      "tags": [
+        "newbie"
+      ],
+      "coverImage": ""
+    }
+  }
+}

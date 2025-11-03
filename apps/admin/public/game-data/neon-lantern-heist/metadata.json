@@ -1,0 +1,53 @@
+{
+  "slug": "neon-lantern-heist",
+  "title": "Neon Lantern Heist",
+  "coverImage": "/media/mediapool/Images/covers/neon-lantern-heist.svg",
+  "shortDescription": "Outrun rival crews under a canopy of neon lanterns before the loot ships out.",
+  "longDescription": "A glow-soaked caper weaving between vendors, rooftop relays, and contraband ferries. Balance stealth with speed as you outmaneuver rival crews under the lantern lights.",
+  "type": "Heist",
+  "mode": "single",
+  "tags": [
+    "neon-lantern-heist"
+  ],
+  "createdAt": "2024-10-08T08:05:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "A glow-soaked caper weaving between vendors, rooftop relays, and contraband ferries. Balance stealth with speed as you outmaneuver rival crews under the lantern lights.",
+    "shortDescription": "Outrun rival crews under a canopy of neon lanterns before the loot ships out.",
+    "tags": [
+      "neon-lantern-heist"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "neon-lantern-heist",
+      "title": "Neon Lantern Heist",
+      "type": "Heist",
+      "mode": "single",
+      "coverImage": "/media/mediapool/Images/covers/neon-lantern-heist.svg",
+      "shortDescription": "Outrun rival crews under a canopy of neon lanterns before the loot ships out.",
+      "channel": "draft",
+      "createdAt": "2024-10-08T08:05:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Neon Lantern Heist",
+      "type": "Heist",
+      "tags": [
+        "neon-lantern-heist"
+      ],
+      "coverImage": "/media/mediapool/Images/covers/neon-lantern-heist.svg",
+      "shortDescription": "Race through midnight markets to reclaim the stolen lantern core before it vanishes offshore.",
+      "longDescription": "A glow-soaked caper weaving between vendors, rooftop relays, and contraband ferries. Balance stealth with speed as you outmaneuver rival crews under the lantern lights.",
+      "deployEnabled": true
+    },
+    "draftGame": {}
+  }
+}

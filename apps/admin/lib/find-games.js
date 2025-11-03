@@ -1,9 +1,14 @@
-// Esxape Ride — Codex helper (2025-10-30)
+// Esxape Ride — Codex helper (2025-11-03)
 // Finds games on the filesystem. Priorities:
-// 1) process.env.GAMES_DIR
-// 2) apps/admin/public/games
-// 3) apps/game-web/public/games
-// 4) public/games
+// 1) process.env.GAME_FILES_DIR
+// 2) apps/admin/public/game-data
+// 3) apps/game-web/public/game-data
+// 4) public/game-data
+// (Legacy fallback)
+// 5) process.env.GAMES_DIR
+// 6) apps/admin/public/games
+// 7) apps/game-web/public/games
+// 8) public/games
 import fs from 'fs';
 import path from 'path';
 
@@ -107,8 +112,8 @@ function normalizeChannel(value) {
   return null;
 }
 
-function loadIndexMeta(baseDir) {
-  const metaPath = path.join(baseDir, 'index.json');
+function loadIndexMeta(baseDir, fileName = 'index.json') {
+  const metaPath = path.join(baseDir, fileName);
   const arr = safeReadJson(metaPath);
   const map = new Map();
   if (Array.isArray(arr)) {
@@ -218,7 +223,7 @@ function readMeta(gameRoot, slugMeta) {
   };
 }
 
-function collectFromBase(baseDir, out, indexByKey) {
+function collectFromLegacyBase(baseDir, out, indexByKey) {
   const items = safeReaddir(baseDir);
   if (!items) return;
   const indexMeta = loadIndexMeta(baseDir);
@@ -268,6 +273,47 @@ function collectFromBase(baseDir, out, indexByKey) {
   }
 }
 
+function collectFromGameData(baseDir, out, indexByKey) {
+  const items = safeReaddir(baseDir);
+  if (!items) return false;
+  const indexMeta = loadIndexMeta(baseDir, 'index.json');
+  let foundAny = false;
+  for (const ent of items) {
+    if (!ent.isDirectory()) continue;
+    const slug = ent.name;
+    const gameRoot = path.join(baseDir, slug);
+    const metadata = safeReadJson(path.join(gameRoot, 'metadata.json'));
+    if (!metadata) continue;
+    foundAny = true;
+    const metaChannels = metadata?.channels && typeof metadata.channels === 'object' ? metadata.channels : {};
+    const channels = Object.keys(metaChannels);
+    const defaultChannel = normalizeChannelStrict(metadata?.channel) || 'draft';
+    const channelList = channels.length ? channels : [defaultChannel];
+    const source = metadata?.sources?.legacyIndex || indexMeta.get(slug) || null;
+    for (const channelKey of channelList) {
+      const normalizedChannel = normalizeChannelStrict(channelKey);
+      const channelMeta = metaChannels[channelKey] || {};
+      const channelDir = path.join(gameRoot, channelKey);
+      const channelLocation = safeExists(channelDir) ? channelDir : gameRoot;
+      const baseRecord = {
+        slug,
+        title: normalizeString(metadata.title) || normalizeString(source?.title) || slug,
+        channel: normalizedChannel,
+        coverImage: normalizeString(metadata.coverImage) || normalizeString(source?.coverImage) || '',
+        shortDescription: normalizeString(metadata.shortDescription) || normalizeString(source?.shortDescription) || '',
+        type: normalizeString(metadata.type) || normalizeString(source?.type) || '',
+        mode: normalizeString(metadata.mode) || normalizeString(source?.mode) || '',
+        createdAt: normalizeString(metadata.createdAt) || normalizeString(channelMeta.createdAt) || normalizeString(source?.createdAt) || '',
+        updatedAt: normalizeString(metadata.updatedAt) || normalizeString(channelMeta.updatedAt) || normalizeString(source?.updatedAt) || '',
+        source: channelLocation,
+        location: gameRoot,
+      };
+      upsertGame(out, indexByKey, baseRecord);
+    }
+  }
+  return foundAny;
+}
+
 function sortGames(list) {
   const order = { published: 0, draft: 1, other: 2 };
   return list.sort((a, b) => {
@@ -290,7 +336,13 @@ function sortGames(list) {
 }
 
 export function findGames() {
-  const candidates = [
+  const modernCandidates = [
+    process.env.GAME_FILES_DIR && path.resolve(process.env.GAME_FILES_DIR),
+    path.join(process.cwd(), 'apps', 'admin', 'public', 'game-data'),
+    path.join(process.cwd(), 'apps', 'game-web', 'public', 'game-data'),
+    path.join(process.cwd(), 'public', 'game-data'),
+  ].filter(Boolean);
+  const legacyCandidates = [
     process.env.GAMES_DIR && path.resolve(process.env.GAMES_DIR),
     path.join(process.cwd(), 'apps', 'admin', 'public', 'games'),
     path.join(process.cwd(), 'apps', 'game-web', 'public', 'games'),
@@ -299,7 +351,16 @@ export function findGames() {
 
   const out = [];
   const indexByKey = new Map();
-  for (const base of candidates) collectFromBase(base, out, indexByKey);
+  let foundModern = false;
+  for (const base of modernCandidates) {
+    const collected = collectFromGameData(base, out, indexByKey);
+    foundModern = collected || foundModern;
+  }
+  if (!foundModern) {
+    for (const base of legacyCandidates) {
+      collectFromLegacyBase(base, out, indexByKey);
+    }
+  }
 
   // Ensure "default" exists as a selectable template
   if (!out.some((g) => g.slug === 'default')) {
@@ -323,8 +384,10 @@ export function findGames() {
 
   const normalizedList = out.map((record) => normalizeRecord(record)).filter(Boolean);
 
+  const baseDirs = foundModern ? modernCandidates : [...modernCandidates, ...legacyCandidates];
+
   return {
-    baseDirs: candidates,
+    baseDirs,
     games: sortGames(normalizedList),
   };
 }

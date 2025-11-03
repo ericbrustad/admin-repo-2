@@ -1,3 +1,5 @@
+"use client";
+
 // CODEx PATCH — Unified Title + Slug & Header Sync
 // Drop-in replacement for BOTH title editors & their "Save Title" buttons.
 // Renders a single title input. As you type:

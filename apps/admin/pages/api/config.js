@@ -55,13 +55,26 @@ async function getFile(filePath) {
 export default async function handler(req, res) {
   try {
     const slug = canonicalSlug(req.query.slug || '');
-    const targetPath = `public/games/${slug}/config.json`;
+    const base = `public/game-data/${slug}`;
+    const candidates = [
+      `${base}/config.json`,
+      `${base}/published/config.json`,
+      `${base}/draft/config.json`,
+      `public/games/${slug}/config.json`,
+    ];
 
-    const file = await getFile(targetPath);
-    if (!file) {
-      return res.status(200).json({});
+    for (const targetPath of candidates) {
+      const file = await getFile(targetPath);
+      if (file) {
+        try {
+          return res.status(200).json(JSON.parse(file.text || '{}'));
+        } catch {
+          // continue to next candidate if parse fails
+        }
+      }
     }
-    return res.status(200).json(JSON.parse(file.text || '{}'));
+
+    return res.status(200).json({});
   } catch (e) {
     return res.status(500).send(String(e?.message || e));
   }

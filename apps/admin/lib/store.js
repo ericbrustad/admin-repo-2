@@ -2,7 +2,10 @@
 // One canonical local store for Admin drafts.
 // Stores games, tags, and cover images together.
 // Auto-migrates from v1 ("esxape:drafts:v1") to v2 ("esxape:games:v2").
+// Seeds from generated game catalog (public/game-data) to keep legacy metadata available.
 // No Supabase writes until "Firm Publish".
+
+import { GAME_CATALOG, GAME_METADATA } from './game-data.generated.js';
 
 const V2_KEY = 'esxape:games:v2';
 const V1_KEY = 'esxape:drafts:v1';
@@ -228,14 +231,67 @@ function migrateV1toV2() {
   return v2;
 }
 
+function applyGeneratedCatalog(store) {
+  if (!Array.isArray(GAME_CATALOG) || GAME_CATALOG.length === 0) return store;
+  const seen = new Set(store.games.map((g) => g.slug));
+  let changed = false;
+
+  for (const entry of GAME_CATALOG) {
+    const slug = typeof entry?.slug === 'string' ? entry.slug.trim() : '';
+    if (!slug || seen.has(slug)) continue;
+
+    const metadata = GAME_METADATA?.[slug] || {};
+    const summary = metadata.summary || {};
+    const canonical = metadata.sources?.canonicalGame || {};
+    const description =
+      (typeof summary.description === 'string' && summary.description) ||
+      (typeof canonical.longDescription === 'string' && canonical.longDescription) ||
+      (typeof entry.shortDescription === 'string' ? entry.shortDescription : '') ||
+      '';
+    const tagsSource =
+      (Array.isArray(summary.tags) && summary.tags.length ? summary.tags : null) ||
+      (Array.isArray(canonical.tags) && canonical.tags.length ? canonical.tags : null) ||
+      null;
+    const category =
+      (typeof canonical.type === 'string' && canonical.type) ||
+      (typeof entry.type === 'string' && entry.type) ||
+      '';
+
+    const generated = normalizeGame({
+      title: typeof entry.title === 'string' && entry.title.trim() ? entry.title : slug,
+      slug,
+      channel: normalizeChannelStrict(entry.channel),
+      payload: {
+        ...DEFAULT_PAYLOAD,
+        meta: {
+          ...DEFAULT_METADATA,
+          description,
+          tags: tagsSource ? normalizeTags(tagsSource) : [],
+          category: category || DEFAULT_METADATA.category,
+        },
+      },
+      updatedAt: metadata.updatedAt || entry.updatedAt || nowIso(),
+    });
+
+    if (generated) {
+      store.games.push(generated);
+      seen.add(slug);
+      changed = true;
+    }
+  }
+
+  if (!changed) return store;
+  return setStore(store);
+}
+
 function getStore() {
   const v2 = readRaw(V2_KEY);
-  if (v2) return normalizeV2(v2);
+  if (v2) return applyGeneratedCatalog(normalizeV2(v2));
   const migrated = migrateV1toV2();
-  if (migrated) return migrated;
+  if (migrated) return applyGeneratedCatalog(migrated);
   const fresh = normalizeV2({ games: [] });
   writeRaw(V2_KEY, fresh);
-  return fresh;
+  return applyGeneratedCatalog(fresh);
 }
 
 function setStore(next) {

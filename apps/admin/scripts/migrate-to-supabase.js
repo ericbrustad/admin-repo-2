@@ -72,9 +72,9 @@ async function upsertGame(supa, slug, config, missionsDraft, missionsPublished) 
 
 async function main() {
   const supa = await loadSupabase();
-  const root = path.join(process.cwd(), 'public', 'games');
+  const root = path.join(process.cwd(), 'public', 'game-data');
   if (!fs.existsSync(root)) {
-    console.error('No public/games directory found.');
+    console.error('No public/game-data directory found.');
     return;
   }
 

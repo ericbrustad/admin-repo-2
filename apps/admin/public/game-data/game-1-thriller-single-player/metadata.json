@@ -1,0 +1,62 @@
+{
+  "slug": "game-1-thriller-single-player",
+  "title": "Thriller Single Player",
+  "coverImage": "",
+  "shortDescription": "Race the countdown to unravel the mystery before the final act.",
+  "longDescription": "",
+  "type": "Thriller",
+  "mode": "single",
+  "tags": [
+    "game-1-thriller-single-player"
+  ],
+  "createdAt": "2024-01-13T09:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "Race the countdown to unravel the mystery before the final act.",
+    "tags": [
+      "game-1-thriller-single-player"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "game-1-thriller-single-player",
+      "title": "Thriller Single Player",
+      "type": "Thriller",
+      "mode": "single",
+      "coverImage": "",
+      "shortDescription": "Race the countdown to unravel the mystery before the final act.",
+      "channel": "draft",
+      "createdAt": "2024-01-13T09:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Untitled Game",
+      "type": "Mystery",
+      "tags": [
+        "game-1-thriller-single-player"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "Untitled Game",
+      "type": "Mystery",
+      "tags": [
+        "game-1-thriller-single-player"
+      ],
+      "coverImage": ""
+    }
+  }
+}
