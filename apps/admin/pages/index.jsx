@@ -6575,9 +6575,6 @@ export default function Admin() {
                 setGameTagsDraft(slug);
                 updateDomGameTagsField(slug);
               }}
-              setPreviewTag={(tag) => {
-                setEditChannel(tag === 'Published' ? 'published' : 'draft');
-              }}
               onChange={(value, game) => {
                 setConfirmDeleteOpen(false);
                 handleUnifiedGameChange(value, game);
