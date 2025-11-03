@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-09T07:15:00Z
+
+**You:** CODEx reports the Settings page is throwing a minified React hook error after the catalog rebuild—force the panel to hydrate as a client component and confirm ChatGPT-5 thinking sees the fix.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, marked the Settings page shell plus GameControls, MetadataEditor, RepoSnapshotFooter, and UnifiedTitle with `"use client"` directives so Turbopack treats them as client components, rebuilt the admin app locally, and revalidated the catalog-powered buttons without runtime errors.
+
+---
+
 **Timestamp:** 2025-11-09T06:20:00Z
 
 **You:** CODEx requested replacing the legacy defaults/global settings views with a unified Settings page that keeps repo metadata visible at the footer, avoids duplicate legacy helpers, and confirms ChatGPT-5 thinking once the rebuild lands.

@@ -1,3 +1,5 @@
+"use client";
+
 // apps/admin/components/MetadataEditor.jsx
 import React, { useEffect, useState } from 'react';
 import { updateMetadata } from '../lib/store';

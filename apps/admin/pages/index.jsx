@@ -1,3 +1,5 @@
+"use client";
+
 // apps/admin/pages/index.jsx
 import React, { useEffect, useState } from 'react';
 

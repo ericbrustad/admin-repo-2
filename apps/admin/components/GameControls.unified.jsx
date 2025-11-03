@@ -1,3 +1,5 @@
+"use client";
+
 // apps/admin/components/GameControls.unified.jsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {

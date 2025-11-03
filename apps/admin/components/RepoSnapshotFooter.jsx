@@ -1,3 +1,5 @@
+"use client";
+
 // CODEX NOTE: Shared footer that surfaces repo metadata at the bottom of Settings pages.
 import React, { useEffect, useMemo, useState } from 'react';
 
