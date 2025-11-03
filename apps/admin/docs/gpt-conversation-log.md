@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-09T10:45:00Z
+
+**You:** CODEx dropped the inline-only Settings.Global replacement with localStorage defaults, geo sync, and repo metadata footer—swap it in, retire the legacy unified controls, and capture the ChatGPT-5 thinking confirmation once the page loads clean.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, replaced the legacy Settings shell with the inline drop-in that seeds default/sample games, handles draft/published saves plus deletes locally, applies stored geo coordinates, mirrors default selectors with optional server sync, and anchors the repository snapshot footer with repo/branch/commit/deployment details and timestamp.
+
+---
+
 **Timestamp:** 2025-11-09T08:52:00Z
 
 **You:** CODEx directed the Settings page to mirror the hzlda2zm3 deployment layout, retire the legacy sections, seed the default game catalog, and capture the ChatGPT-5 confirmation.
