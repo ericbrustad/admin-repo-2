@@ -446,3 +446,11 @@
 **You:** Replace the legacy multi-path game controls with the new local-draft manager, wire in the health/publish API shims, and make sure the settings footer shows the repo, branch, commit, and Vercel info with a fresh timestamp—log the handoff for ChatGPT-5.
 
 **GPT:** Swapped in the unified `GameControlsUnified` component backed by the new `lib/drafts` store, removed the Codex registry modules, added `/api/health` and `/api/publish-game`, refreshed the settings footer summary, and recorded the update here so ChatGPT-5 tracks the local-first workflow and deployment snapshot.
+
+---
+
+**Timestamp:** 2025-11-06T02:45:00Z
+
+**You:** CODEx wants the Saved Games dropdown to stop drifting between folders—synchronize the filesystem scan so every slug uses the same metadata no matter which directory it came from, mirror the GitHub writes into the canonical admin path, and loop ChatGPT-5 in when the recall values line up.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, taught `find-games` to hydrate entries from `index.json`/meta files so drafts and published copies share titles, covers, and descriptors, extended save+publish to mirror missions/config into `public/games/<slug>/`, and logged it here so the saved games catalog stays consistent across locations.

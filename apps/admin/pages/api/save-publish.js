@@ -105,6 +105,14 @@ export default async function handler(req, res) {
     await putFileWithRetry(rootDraftC, configText, `save+publish(draft config): ${slug}`);
     wrote.push(rootDraftC);
 
+    // Canonical root (Admin)
+    const rootCanonicalM = joinPath(`public/games/${canonicalSlug}/missions.json`);
+    const rootCanonicalC = joinPath(`public/games/${canonicalSlug}/config.json`);
+    await putFileWithRetry(rootCanonicalM, missionsText, `save+publish(canonical missions): ${slug}`);
+    wrote.push(rootCanonicalM);
+    await putFileWithRetry(rootCanonicalC, configText, `save+publish(canonical config): ${slug}`);
+    wrote.push(rootCanonicalC);
+
     // Draft (Game) for TEST channel + PUBLISHED (Game live) — only when GAME_ENABLED
     const gameRepoBase = 'apps/game-web/public';
     if (GAME_ENABLED) {
