@@ -6,7 +6,7 @@ import AnswerResponseEditor from '../components/AnswerResponseEditor';
 import InlineMissionResponses from '../components/InlineMissionResponses';
 import AssignedMediaTab from '../components/AssignedMediaTab';
 import SafeBoundary from '../components/SafeBoundary';
-import CodexDropGameDraftsPanel, {
+import GameControlsUnified, {
   useCodexGames as useUnifiedGames,
 } from '../components/GameControls.unified.jsx';
 import RepoSnapshotFooter from '../components/RepoSnapshotFooter.jsx';
@@ -4887,9 +4887,13 @@ export default function Admin() {
       let channel = match?.channel === 'published' || match?.tag === 'published' ? 'published' : 'draft';
 
       const pickTitle = (a, b) => (a && String(a).trim()) || (b && String(b).trim()) || '';
-      const rawValue = typeof value === 'string' ? value.trim() : '';
+      const rawValue = typeof value === 'string' ? value.trim() : ''
 
-      if (rawValue === 'default::draft' || rawValue === 'default' || match?.slug === 'default') {
+      if (rawValue.startsWith('draft:') || rawValue.startsWith('published:')) {
+        const [tag, slugValue] = rawValue.split(':');
+        slug = (slugValue || '').trim();
+        channel = tag === 'published' ? 'published' : 'draft';
+      } else if (rawValue === 'default::draft' || rawValue === 'default' || match?.slug === 'default') {
         slug = 'default';
         channel = 'draft';
         match = match || { slug: 'default', channel: 'draft', title: 'Starfield Station Break' };
@@ -6564,9 +6568,16 @@ export default function Admin() {
         <main style={S.wrap}>
           <div style={S.card}>
             <h3 style={{ marginTop:0 }}>Game Settings</h3>
-            <CodexDropGameDraftsPanel
-              mode={editChannel || 'draft'}
-              value={currentGameId}
+            <GameControlsUnified
+              setHeaderTitle={setTitleDraft}
+              setSlug={(slug) => {
+                setActiveSlug(slug);
+                setGameTagsDraft(slug);
+                updateDomGameTagsField(slug);
+              }}
+              setPreviewTag={(tag) => {
+                setEditChannel(tag === 'Published' ? 'published' : 'draft');
+              }}
               onChange={(value, game) => {
                 setConfirmDeleteOpen(false);
                 handleUnifiedGameChange(value, game);

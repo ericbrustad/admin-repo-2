@@ -285,8 +285,10 @@ export default function RepoSnapshotFooter() {
   const metaCommitFooterLabel = metaSnapshotHasValue(metaCommitFull)
     ? metaCommitFull
     : (metaSnapshotHasValue(metaCommitDisplay) ? metaCommitDisplay : '—');
-  const metaDeploymentFooterLabel = metaSnapshotHasValue(metaDeploymentDisplay) ? metaDeploymentDisplay : '—';
-  const metaFooterNowLabel = metaNowLabel || '—';
+  const metaDeploymentFooterLabel = metaSnapshotHasValue(metaDeploymentDisplay)
+    ? metaDeploymentDisplay
+    : (metaSnapshotHasValue(metaVercelDisplay) ? metaVercelDisplay : '—');
+  const metaFooterNowLabel = metaTimestampLabel || metaNowLabel || '—';
   const metaDevFooterLine = `Repo: ${metaRepoFooterLabel} • Branch: ${metaBranchFooterLabel} • Commit: ${metaCommitFooterLabel} • Deployment: ${metaDeploymentFooterLabel} • Generated ${metaFooterNowLabel}`;
 
   return (
