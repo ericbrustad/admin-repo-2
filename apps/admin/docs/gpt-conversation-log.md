@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-03T05:53:18Z
+
+**You:** CODEx called out the lingering legacy title input on Settings—swap in the UnifiedTitle bridge so the slug preview and header stay in sync, keep the unified controls only, and let ChatGPT-5 thinking know once it lands.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, added the UnifiedTitle component with live slug preview + header event dispatch, replaced the old title block inside GameControlsUnified, and retested the streamlined Settings layout with the repo snapshot footer anchoring the bottom panel.
+
+---
+
 **Timestamp:** 2025-11-08T15:45:00Z
 
 **You:** CODEx needs metadata edits to normalize into every saved game—add a helper that keeps description, tags, category, difficulty, duration, and center defaults, expose an updater so the UI can merge patches, wire a metadata editor next to the title/cover fields, and confirm ChatGPT-5 thinking signs off.

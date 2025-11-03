@@ -13,6 +13,7 @@ import {
   clearCover,
 } from '../lib/store';
 import MetadataEditor from './MetadataEditor';
+import UnifiedTitle from './UnifiedTitle';
 
 const noop = () => {};
 
@@ -125,24 +126,27 @@ export default function GameControlsUnified({
     triggerFlash('Saved ✓');
   }, [refresh, triggerFlash]);
 
-  const onTitleChange = useCallback(
-    (e) => {
+  const onTitleDraftChange = useCallback(
+    (next) => {
       if (!current) return;
-      const nextTitle = e.target.value;
+      const nextTitle = typeof next?.title === 'string' ? next.title : '';
+      const previewSlug = typeof next?.slug === 'string' ? next.slug : slugify(nextTitle);
       let nextSlug = current.slug;
+
       if (current.slug !== 'default') {
+        const desired = slugify(nextTitle) || previewSlug || 'untitled';
         const oldDerived = slugify(current.title);
         if (current.slug === oldDerived || current.slug.startsWith(`${oldDerived}-`)) {
-          nextSlug = ensureUniqueSlug(slugify(nextTitle) || 'untitled');
+          nextSlug = ensureUniqueSlug(desired);
         }
       }
+
       const saved = upsertGame({ ...current, title: nextTitle, slug: nextSlug });
       refresh();
       const record = getGame(saved.slug) || saved;
       setCurrent(record);
-      triggerFlash('Saved ✓', 700);
     },
-    [current, refresh, triggerFlash],
+    [current, refresh],
   );
 
   const onCoverChange = useCallback(
@@ -258,18 +262,11 @@ export default function GameControlsUnified({
         <>
           <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="flex flex-col">
-              <label className="text-sm font-medium">Title</label>
-              <input
-                type="text"
+              <UnifiedTitle
                 value={current.title}
-                onChange={onTitleChange}
-                className="border rounded px-2 py-1"
-                placeholder="Game title"
+                currentSlug={current.slug}
+                onChange={onTitleDraftChange}
               />
-              <small className="opacity-70 mt-1">
-                Tag: {current.slug}
-                {current.slug === 'default' ? ' (Default)' : ''}
-              </small>
             </div>
 
             <div className="flex flex-col">
