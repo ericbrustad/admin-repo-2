@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-03T14:56:03Z
+
+**You:** CODEx asked for the browser-only Settings panel to surface repo, branch, commit, and Vercel deployment details at the footer with a timestamp and to capture the ChatGPT-5 confirmation once tests stay clean.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, wired a browser-safe deployment snapshot footer that falls back to env vars and fetches `/api/admin-meta`, kept the local saved-game helpers untouched, ran the vercel info check for validation, and logged the exchange here.
+
+---
+
 **Timestamp:** 2025-11-09T13:30:00Z
 
 **You:** CODEx asked for the unified Settings drop-in to live as the global page, keep the repo snapshot footer accurate, and capture the ChatGPT-5 confirmation once the Vercel metadata loads without errors.
