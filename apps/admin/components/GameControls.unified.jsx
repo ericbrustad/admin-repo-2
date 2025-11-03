@@ -1,20 +1,17 @@
 // apps/admin/components/GameControls.unified.jsx
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  listDrafts,
-  ensureDefaultDraft,
-  makeNewDraft,
-  getDraftBySlug,
-  upsertDraft,
-  deleteDraft,
+  listGames,
+  listTags,
+  ensureDefaultGame,
+  getGame,
+  upsertGame,
+  deleteGame,
   slugify,
   ensureUniqueSlug,
-  setDraftCoverImageFromFile,
-} from '../lib/drafts';
-
-// No preview tag, no slug editing UI.
-// "Default" remains slug=default and is always listed.
-// New Game instantly saves; cover image is saved and recalled locally.
+  setCoverFromFile,
+  clearCover,
+} from '../lib/store';
 
 const noop = () => {};
 
@@ -24,49 +21,59 @@ export default function GameControlsUnified({
   onChange = noop,
   onCloseAndSave: onCloseAndSaveProp = noop,
 }) {
-  const [drafts, setDrafts] = useState([]);
+  const [games, setGames] = useState([]);
+  const [tags, setTags] = useState([]);
   const [current, setCurrent] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [saveOK, setSaveOK] = useState(false);
+  const [flash, setFlash] = useState('');
   const [error, setError] = useState('');
 
-  // Ensure default on mount, then load list.
-  useEffect(() => {
-    ensureDefaultDraft();
-    setDrafts(listDrafts());
+  const refresh = useCallback(() => {
+    const nextGames = listGames();
+    const nextTags = listTags();
+    setGames(nextGames);
+    setTags(nextTags);
+    return nextGames;
   }, []);
+
+  useEffect(() => {
+    ensureDefaultGame();
+    const nextGames = refresh();
+    const first = nextGames.find((g) => g.slug === 'default') || nextGames[0] || null;
+    setCurrent(first || null);
+  }, [refresh]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handler = () => {
-      setDrafts(listDrafts());
+      const nextGames = refresh();
+      if (!current) {
+        const first = nextGames.find((g) => g.slug === 'default') || nextGames[0] || null;
+        if (first) setCurrent(first);
+      }
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }, []);
+  }, [current, refresh]);
 
   useEffect(() => {
-    if (!drafts.length) {
+    if (!games.length) {
       if (current) setCurrent(null);
       return;
     }
-
-    const defaultFirst = drafts.find(d => d.slug === 'default') || drafts[0];
-
+    const defaultFirst = games.find((g) => g.slug === 'default') || games[0];
     if (!current) {
       setCurrent(defaultFirst);
       return;
     }
-
-    const nextMatch = drafts.find(d => d.slug === current.slug);
+    const nextMatch = games.find((g) => g.slug === current.slug);
     if (!nextMatch) {
       setCurrent(defaultFirst);
     } else if (nextMatch !== current) {
       setCurrent(nextMatch);
     }
-  }, []); // eslint-disable-line
+  }, [games]);
 
-  // Keep header in sync (no preview tag)
   useEffect(() => {
     if (!current) return;
     setHeaderTitle(current.title);
@@ -78,101 +85,123 @@ export default function GameControlsUnified({
     onChange(`${current.channel || 'draft'}:${current.slug}`, current);
   }, [current, onChange]);
 
-  const options = useMemo(() => {
-    const opts = drafts.map(d => ({
-      value: d.slug,
-      label: d.slug === 'default' ? `${d.title} (Default)` : d.title,
-    }));
-    return opts;
-  }, [drafts]);
+  const options = useMemo(
+    () =>
+      games.map((g) => ({
+        value: g.slug,
+        label: g.slug === 'default' ? `${g.title} (Default)` : g.title,
+      })),
+    [games],
+  );
 
-  const selectBySlug = useCallback((slug) => {
-    const found = getDraftBySlug(slug);
+  const selectSlug = useCallback((slug) => {
+    const found = getGame(slug);
     if (found) setCurrent(found);
   }, []);
 
-  const onNew = useCallback(() => {
-    // Create, save, and select immediately.
-    const d = makeNewDraft('New Game');
-    const list = listDrafts();
-    setDrafts(list);
-    setCurrent(getDraftBySlug(d.slug));
-    setSaveOK(true); setTimeout(() => setSaveOK(false), 900);
+  const triggerFlash = useCallback((msg, timeout = 900) => {
+    setFlash(msg);
+    setTimeout(() => setFlash(''), timeout);
   }, []);
 
-  const onTitleChange = useCallback((e) => {
-    if (!current) return;
-    const nextTitle = e.target.value;
-    // Keep slug implicit & stable:
-    // - Default keeps slug "default"
-    // - Others auto-derive once (only if it was identical to prior derivation)
-    let nextSlug = current.slug;
-    if (current.slug !== 'default') {
-      const derived = slugify(nextTitle) || 'untitled';
-      // if current slug looks like it's just the old derived, keep them aligned but unique
-      if (current.slug === slugify(current.title) || current.slug.startsWith(slugify(current.title) + '-')) {
-        nextSlug = ensureUniqueSlug(derived, current.slug);
-      }
-    }
-    const updated = upsertDraft({ ...current, title: nextTitle, slug: nextSlug });
-    setCurrent(updated);
-    setDrafts(listDrafts());
-    setSaveOK(true); setTimeout(() => setSaveOK(false), 600);
-  }, [current]);
+  const onNew = useCallback(() => {
+    const slug = ensureUniqueSlug(slugify('New Game') || 'untitled');
+    const saved = upsertGame({ title: 'New Game', slug, channel: 'draft' });
+    refresh();
+    const record = getGame(saved.slug) || saved;
+    setCurrent(record);
+    triggerFlash('Saved ✓');
+  }, [refresh, triggerFlash]);
 
-  const onCoverImageChange = useCallback(async (e) => {
+  const onTitleChange = useCallback(
+    (e) => {
+      if (!current) return;
+      const nextTitle = e.target.value;
+      let nextSlug = current.slug;
+      if (current.slug !== 'default') {
+        const oldDerived = slugify(current.title);
+        if (current.slug === oldDerived || current.slug.startsWith(`${oldDerived}-`)) {
+          nextSlug = ensureUniqueSlug(slugify(nextTitle) || 'untitled');
+        }
+      }
+      const saved = upsertGame({ ...current, title: nextTitle, slug: nextSlug });
+      refresh();
+      const record = getGame(saved.slug) || saved;
+      setCurrent(record);
+      triggerFlash('Saved ✓', 700);
+    },
+    [current, refresh, triggerFlash],
+  );
+
+  const onCoverChange = useCallback(
+    async (e) => {
+      if (!current) return;
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setBusy(true);
+      setError('');
+      try {
+        const saved = await setCoverFromFile(current.slug, file, { maxDim: 1400 });
+        refresh();
+        const record = saved ? getGame(saved.slug) || saved : getGame(current.slug);
+        if (record) setCurrent(record);
+        triggerFlash('Cover saved ✓');
+      } catch (err) {
+        setError(String(err?.message || err));
+      } finally {
+        setBusy(false);
+        if (e.target) e.target.value = '';
+      }
+    },
+    [current, refresh, triggerFlash],
+  );
+
+  const onClearCover = useCallback(() => {
     if (!current) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy(true); setError('');
-    try {
-      const updated = await setDraftCoverImageFromFile(current.slug, file, { maxDim: 1400 });
-      setCurrent(updated);
-      setDrafts(listDrafts());
-      setSaveOK(true); setTimeout(() => setSaveOK(false), 900);
-    } catch (err) {
-      setError(String(err?.message || err));
-    } finally {
-      setBusy(false);
-      e.target.value = ''; // reset input
-    }
-  }, [current]);
+    const saved = clearCover(current.slug);
+    refresh();
+    const record = saved ? getGame(saved.slug) || saved : getGame(current.slug);
+    if (record) setCurrent(record);
+    triggerFlash('Cover removed');
+  }, [current, refresh, triggerFlash]);
 
   const onCloseAndSave = useCallback(async () => {
     if (!current) return;
     setBusy(true);
+    setError('');
     try {
-      const saved = upsertDraft(current);
-      setCurrent(saved);
-      setDrafts(listDrafts());
-      await onCloseAndSaveProp(saved);
-      setSaveOK(true); setTimeout(() => setSaveOK(false), 1000);
+      const saved = upsertGame(current);
+      refresh();
+      const record = getGame(saved.slug) || saved;
+      if (record) setCurrent(record);
+      await onCloseAndSaveProp(record);
+      triggerFlash('Saved ✓', 1000);
     } catch (err) {
       setError(String(err?.message || err));
     } finally {
       setBusy(false);
     }
-  }, [current, onCloseAndSaveProp]);
+  }, [current, onCloseAndSaveProp, refresh, triggerFlash]);
 
-  const onDelete = useCallback(() => {
+  const onDeleteGame = useCallback(() => {
     if (!current) return;
     if (current.slug === 'default') {
       alert('Default cannot be deleted.');
       return;
     }
     if (!confirm(`Delete “${current.title}”? This cannot be undone.`)) return;
-    deleteDraft(current.slug);
-    const next = listDrafts();
-    setDrafts(next);
-    setCurrent(next.find(d => d.slug === 'default') || next[0] || null);
-  }, [current]);
+    deleteGame(current.slug);
+    const nextGames = refresh();
+    const next = nextGames.find((g) => g.slug === 'default') || nextGames[0] || null;
+    setCurrent(next);
+  }, [current, refresh]);
 
   const onFirmPublish = useCallback(async () => {
     if (!current) return;
     if (!confirm(`Firm Publish “${current.title}”? This will go LIVE.`)) return;
-    setBusy(true); setError('');
+    setBusy(true);
+    setError('');
     try {
-      // Publish uses Supabase (server) — still the only time we write remotely
       const res = await fetch('/api/publish-game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,19 +209,16 @@ export default function GameControlsUnified({
           title: current.title,
           slug: current.slug,
           payload: current.payload,
-          // cover image will be uploaded later in your publish pipeline; locally we just store dataUrl
         }),
       });
       if (!res.ok) throw new Error(`Publish failed (${res.status})`);
-      await res.json();
-      // keep local channel labeled draft for now (you may choose to flip it visually)
-      setSaveOK(true); setTimeout(() => setSaveOK(false), 1200);
+      triggerFlash('Publish request sent ✓', 1200);
     } catch (err) {
       setError(String(err?.message || err));
     } finally {
       setBusy(false);
     }
-  }, [current]);
+  }, [current, triggerFlash]);
 
   return (
     <div className="flex flex-col gap-3 p-3 border rounded-lg" style={{ maxWidth: 900 }}>
@@ -200,16 +226,20 @@ export default function GameControlsUnified({
         <label className="font-medium">Saved Games</label>
         <select
           value={current ? current.slug : ''}
-          onChange={(e) => selectBySlug(e.target.value)}
+          onChange={(e) => selectSlug(e.target.value)}
           className="border rounded px-2 py-1"
         >
           {!current && <option value="">— Select —</option>}
-          {options.length === 0 && <option value="">(No drafts yet)</option>}
-          {options.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          {options.length === 0 && <option value="">(No games yet)</option>}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
           ))}
         </select>
         <button onClick={onNew} className="px-3 py-1 border rounded">+ New Game</button>
+        {flash && <span className="text-green-600 text-sm">{flash}</span>}
+        {!!error && <span className="text-red-600 text-sm">Error: {error}</span>}
       </div>
 
       {current && (
@@ -224,7 +254,8 @@ export default function GameControlsUnified({
               placeholder="Game title"
             />
             <small className="opacity-70 mt-1">
-              Tag: {current.slug}{current.slug === 'default' ? ' (Default)' : ''}
+              Tag: {current.slug}
+              {current.slug === 'default' ? ' (Default)' : ''}
             </small>
           </div>
 
@@ -233,16 +264,21 @@ export default function GameControlsUnified({
             <input
               type="file"
               accept="image/*"
-              onChange={onCoverImageChange}
+              onChange={onCoverChange}
               className="border rounded px-2 py-1"
               disabled={busy}
             />
             {current.coverImage?.dataUrl && (
-              <img
-                src={current.coverImage.dataUrl}
-                alt="Cover"
-                style={{ marginTop: 8, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
-              />
+              <>
+                <img
+                  src={current.coverImage.dataUrl}
+                  alt="Cover"
+                  style={{ marginTop: 8, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
+                />
+                <button onClick={onClearCover} className="mt-2 px-3 py-1 border rounded">
+                  Remove Cover
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -255,22 +291,26 @@ export default function GameControlsUnified({
         <button onClick={onFirmPublish} disabled={!current || busy} className="px-3 py-1 border rounded bg-blue-50">
           Firm Publish “{current?.title ?? ''}”
         </button>
-        <button onClick={onDelete} disabled={!current || busy} className="px-3 py-1 border rounded border-red-500">
+        <button onClick={onDeleteGame} disabled={!current || busy} className="px-3 py-1 border rounded border-red-500">
           Delete “{current?.title ?? ''}”
         </button>
-        {saveOK && <span className="text-green-600 text-sm">Saved ✓</span>}
-        {!!error && <span className="text-red-600 text-sm">Error: {error}</span>}
       </div>
 
       <div className="text-xs opacity-70">
-        Local save location: <code>localStorage["esxape:drafts:v1"]</code>
+        Local save location: <code>localStorage["esxape:games:v2"]</code>
+        {tags.length ? (
+          <>
+            {' '}
+            • Tags tracked: {tags.join(', ')}
+          </>
+        ) : null}
       </div>
     </div>
   );
 }
 
 export function useCodexGames() {
-  const [games, setGames] = useState(() => listDrafts());
+  const [games, setGames] = useState(() => listGames());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -278,11 +318,11 @@ export function useCodexGames() {
     setBusy(true);
     setError(null);
     try {
-      const next = listDrafts();
+      const next = listGames();
       setGames(next);
       return next;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to load drafts';
+      const message = err instanceof Error ? err.message : 'Unable to load games';
       setError(message);
       return [];
     } finally {
@@ -293,7 +333,9 @@ export function useCodexGames() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     void reload();
-    const handler = () => void reload();
+    const handler = () => {
+      void reload();
+    };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
   }, [reload]);
