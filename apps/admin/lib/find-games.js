@@ -25,6 +25,55 @@ const FALLBACK_GAMES = [
   { slug: 'lucky-clover-field', title: 'Lucky Clover Field', channel: 'draft' },
 ];
 
+function normalizeSlug(value) {
+  if (!value) return '';
+  return String(value).trim().toLowerCase();
+}
+
+function normalizeChannelStrict(value) {
+  const normalized = (value || '').toString().trim().toLowerCase();
+  if (normalized === 'published') return 'published';
+  if (normalized === 'draft') return 'draft';
+  return 'draft';
+}
+
+function normalizeString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeRecord(record) {
+  if (!record) return null;
+  const slug = normalizeSlug(record.slug);
+  if (!slug) return null;
+  const channel = normalizeChannelStrict(record.channel);
+  const title = normalizeString(record.title) || slug;
+  const coverImage = normalizeString(record.coverImage);
+  const shortDescription = normalizeString(record.shortDescription);
+  const type = normalizeString(record.type);
+  const mode = normalizeString(record.mode);
+  const createdAt = normalizeString(record.createdAt);
+  const updatedAt = normalizeString(record.updatedAt);
+  const source = normalizeString(record.source);
+  const location = normalizeString(record.location) || source;
+
+  return {
+    slug,
+    title,
+    channel,
+    status: channel,
+    published: channel === 'published',
+    draft: channel !== 'published',
+    coverImage,
+    shortDescription,
+    type,
+    mode,
+    createdAt,
+    updatedAt,
+    source,
+    location,
+  };
+}
+
 function safeReaddir(dir) {
   try {
     return fs.readdirSync(dir, { withFileTypes: true });
@@ -73,43 +122,63 @@ function loadIndexMeta(baseDir) {
 }
 
 function mergeGame(existing, incoming) {
-  const next = { ...existing };
-  let changed = false;
-  for (const key of [
+  const base = normalizeRecord(existing);
+  const candidate = normalizeRecord(incoming);
+  if (!base && !candidate) return null;
+  if (!base) return candidate;
+  if (!candidate) return base;
+
+  const next = { ...base };
+
+  const preferKeys = [
     'title',
-    'channel',
     'coverImage',
     'shortDescription',
     'type',
     'mode',
-    'createdAt',
-    'updatedAt',
-  ]) {
-    const current = next[key];
-    const candidate = incoming[key];
-    if (
-      (candidate != null && candidate !== '' &&
-        (current == null || current === '' || current === existing.slug))
-    ) {
-      next[key] = candidate;
-      changed = true;
+  ];
+  for (const key of preferKeys) {
+    const current = normalizeString(next[key]);
+    const incomingValue = normalizeString(candidate[key]);
+    if (!current && incomingValue) {
+      next[key] = incomingValue;
     }
   }
-  if (incoming.source && !next.source) {
-    next.source = incoming.source;
-    changed = true;
+
+  if (!normalizeString(next.createdAt) && normalizeString(candidate.createdAt)) {
+    next.createdAt = candidate.createdAt;
   }
-  return changed ? next : existing;
+
+  if (normalizeString(candidate.updatedAt)) {
+    const prev = normalizeString(next.updatedAt);
+    if (!prev || candidate.updatedAt > prev) {
+      next.updatedAt = candidate.updatedAt;
+    }
+  }
+
+  if (!normalizeString(next.source) && normalizeString(candidate.source)) {
+    next.source = candidate.source;
+  }
+
+  if (!normalizeString(next.location) && normalizeString(candidate.location)) {
+    next.location = candidate.location;
+  }
+
+  return normalizeRecord(next);
 }
 
-function upsertGame(out, indexByKey, key, record) {
+function upsertGame(out, indexByKey, record) {
+  const normalized = normalizeRecord(record);
+  if (!normalized) return;
+  const key = `${normalized.slug}::${normalized.channel}`;
   if (indexByKey.has(key)) {
     const idx = indexByKey.get(key);
-    out[idx] = mergeGame(out[idx], record);
+    const merged = mergeGame(out[idx], normalized);
+    out[idx] = merged || normalized;
     return;
   }
   indexByKey.set(key, out.length);
-  out.push(record);
+  out.push(normalized);
 }
 
 function readMeta(gameRoot, slugMeta) {
@@ -175,15 +244,13 @@ function collectFromBase(baseDir, out, indexByKey) {
     };
 
     if (hasPublished) {
-      const key = `${slug}::published`;
-      upsertGame(out, indexByKey, key, {
+      upsertGame(out, indexByKey, {
         ...baseRecord,
         channel: 'published',
       });
     }
     if (hasDraft) {
-      const key = `${slug}::draft`;
-      upsertGame(out, indexByKey, key, {
+      upsertGame(out, indexByKey, {
         ...baseRecord,
         channel: 'draft',
       });
@@ -193,8 +260,7 @@ function collectFromBase(baseDir, out, indexByKey) {
         normalizeChannel(meta.channel) ||
         normalizeChannel(slugMeta?.channel) ||
         'draft';
-      const key = `${slug}::${metaChannel}`;
-      upsertGame(out, indexByKey, key, {
+      upsertGame(out, indexByKey, {
         ...baseRecord,
         channel: metaChannel,
       });
@@ -237,7 +303,7 @@ export function findGames() {
 
   // Ensure "default" exists as a selectable template
   if (!out.some((g) => g.slug === 'default')) {
-    out.push({
+    upsertGame(out, indexByKey, {
       slug: 'default',
       title: 'Default',
       channel: 'draft',
@@ -247,21 +313,19 @@ export function findGames() {
 
   for (const fallback of FALLBACK_GAMES) {
     if (!fallback?.slug) continue;
-    const channel = fallback.channel === 'published' ? 'published' : 'draft';
-    const key = `${fallback.slug}::${channel}`;
-    if (indexByKey.has(key)) continue;
-    indexByKey.set(key, out.length);
-    out.push({
+    upsertGame(out, indexByKey, {
       slug: fallback.slug,
       title: fallback.title || fallback.slug,
-      channel,
+      channel: fallback.channel,
       source: fallback.source || 'fallback',
     });
   }
 
+  const normalizedList = out.map((record) => normalizeRecord(record)).filter(Boolean);
+
   return {
     baseDirs: candidates,
-    games: sortGames(out),
+    games: sortGames(normalizedList),
   };
 }
 
