@@ -64,7 +64,7 @@ export default function GameControlsUnified({
     } else if (nextMatch !== current) {
       setCurrent(nextMatch);
     }
-  }, [drafts, current]);
+  }, []); // eslint-disable-line
 
   // Keep header in sync (no preview tag)
   useEffect(() => {
