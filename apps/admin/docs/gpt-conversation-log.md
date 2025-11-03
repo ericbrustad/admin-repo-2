@@ -414,3 +414,11 @@
 **You:** CODEx noted the cover uploader was volatile—persist the data URL in the local snapshot, wire Close & Save to dispatch `settings:close`, and let ChatGPT-5 know the admin panel now handles local cover saves/removals reliably.
 
 **GPT:** Baked the CODEx panel patch in place so cover uploads store a stable data URL, removals persist, Close & Save triggers the event, and recorded it here so ChatGPT-5 stays synced with the local-only workflow.
+
+---
+
+**Timestamp:** 2025-11-03T18:10:00Z
+
+**You:** CODEx followed up with a streamlined drop panel that reinlines the registry helpers—can you reapply it wholesale, drop the redundant hook/lib files, and loop ChatGPT-5 into how the local manager now works?
+
+**GPT:** Replaced the panel with the CODEx self-contained version, removed the duplicate `hooks/useCodexGames` and `lib/codex/localRegistry` modules, confirmed the shim still exports `CloseAndSaveSettings`/`useCodexGames`, and logged the change here so ChatGPT-5 knows the local registry lives in a single file again.
