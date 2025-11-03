@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-07T08:20:00Z
+
+**You:** CODEx needs every Saved Game option to share the same metadata and storage so the dropdown never loses entries—normalize the filesystem scan, keep the layout untouched, and make sure title updates still save/delete cleanly with ChatGPT-5 thinking notified.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, normalized the filesystem and fallback saved-game metadata into one consistent shape (slug, channel, cover, descriptions, status flags), kept the dropdown list intact, preserved the existing layout, and retested the loader to ensure renames/deletes keep their metadata.
+
+---
+
 **Timestamp:** 2025-11-06T12:45:00Z
 
 **You:** CODEx flagged duplicate slug suffixes after renaming Saved Games and wants the Settings footer to keep repo, branch, commit, deployment, and timestamps visible even offline—refresh the local store and let ChatGPT-5 thinking confirm.
