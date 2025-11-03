@@ -1,0 +1,41 @@
+{
+  "slug": "new-game-5",
+  "title": "Untitled Game",
+  "coverImage": "",
+  "shortDescription": "",
+  "longDescription": "",
+  "type": "Mystery",
+  "mode": "single",
+  "tags": [
+    "new-game-5"
+  ],
+  "createdAt": "",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "",
+    "tags": [
+      "new-game-5"
+    ]
+  },
+  "sources": {
+    "legacyIndex": null,
+    "canonicalGame": {},
+    "draftGame": {
+      "title": "Untitled Game",
+      "type": "Mystery",
+      "tags": [
+        "new-game-5"
+      ],
+      "coverImage": ""
+    }
+  }
+}

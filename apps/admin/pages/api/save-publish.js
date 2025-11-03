@@ -98,16 +98,16 @@ export default async function handler(req, res) {
     const canonicalSlug = slug === 'default' ? 'starfield-station-break' : slug;
 
     // Draft (Admin root)
-    const rootDraftM = joinPath(`public/games/${canonicalSlug}/draft/missions.json`);
-    const rootDraftC = joinPath(`public/games/${canonicalSlug}/draft/config.json`);
+    const rootDraftM = joinPath(`public/game-data/${canonicalSlug}/draft/missions.json`);
+    const rootDraftC = joinPath(`public/game-data/${canonicalSlug}/draft/config.json`);
     await putFileWithRetry(rootDraftM, missionsText, `save+publish(draft missions): ${slug}`);
     wrote.push(rootDraftM);
     await putFileWithRetry(rootDraftC, configText, `save+publish(draft config): ${slug}`);
     wrote.push(rootDraftC);
 
     // Canonical root (Admin)
-    const rootCanonicalM = joinPath(`public/games/${canonicalSlug}/missions.json`);
-    const rootCanonicalC = joinPath(`public/games/${canonicalSlug}/config.json`);
+    const rootCanonicalM = joinPath(`public/game-data/${canonicalSlug}/missions.json`);
+    const rootCanonicalC = joinPath(`public/game-data/${canonicalSlug}/config.json`);
     await putFileWithRetry(rootCanonicalM, missionsText, `save+publish(canonical missions): ${slug}`);
     wrote.push(rootCanonicalM);
     await putFileWithRetry(rootCanonicalC, configText, `save+publish(canonical config): ${slug}`);
@@ -116,15 +116,15 @@ export default async function handler(req, res) {
     // Draft (Game) for TEST channel + PUBLISHED (Game live) — only when GAME_ENABLED
     const gameRepoBase = 'apps/game-web/public';
     if (GAME_ENABLED) {
-      const gameDraftM = joinPath(`${gameRepoBase}/games/${canonicalSlug}/draft/missions.json`);
-      const gameDraftC = joinPath(`${gameRepoBase}/games/${canonicalSlug}/draft/config.json`);
+      const gameDraftM = joinPath(`${gameRepoBase}/game-data/${canonicalSlug}/draft/missions.json`);
+      const gameDraftC = joinPath(`${gameRepoBase}/game-data/${canonicalSlug}/draft/config.json`);
       await putFileWithRetry(gameDraftM, missionsText, `save+publish(game draft missions): ${slug}`);
       wrote.push(gameDraftM);
       await putFileWithRetry(gameDraftC, configText, `save+publish(game draft config): ${slug}`);
       wrote.push(gameDraftC);
 
-      const gamePubM = joinPath(`${gameRepoBase}/games/${canonicalSlug}/missions.json`);
-      const gamePubC = joinPath(`${gameRepoBase}/games/${canonicalSlug}/config.json`);
+      const gamePubM = joinPath(`${gameRepoBase}/game-data/${canonicalSlug}/missions.json`);
+      const gamePubC = joinPath(`${gameRepoBase}/game-data/${canonicalSlug}/config.json`);
       await putFileWithRetry(gamePubM, missionsText, `publish(${slug}): game missions.json`);
       wrote.push(gamePubM);
       await putFileWithRetry(gamePubC, configText, `publish(${slug}): game config.json`);

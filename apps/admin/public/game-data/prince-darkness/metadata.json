@@ -1,0 +1,62 @@
+{
+  "slug": "prince-darkness",
+  "title": "Prince Darkness",
+  "coverImage": "",
+  "shortDescription": "Uncover the vanished heir before the eclipse seals the capital in shadow.",
+  "longDescription": "",
+  "type": "Horror",
+  "mode": "single",
+  "tags": [
+    "prince-darkness"
+  ],
+  "createdAt": "2024-01-17T09:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "Uncover the vanished heir before the eclipse seals the capital in shadow.",
+    "tags": [
+      "prince-darkness"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "prince-darkness",
+      "title": "Prince Darkness",
+      "type": "Horror",
+      "mode": "single",
+      "coverImage": "",
+      "shortDescription": "Uncover the vanished heir before the eclipse seals the capital in shadow.",
+      "channel": "draft",
+      "createdAt": "2024-01-17T09:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Prince Darkness",
+      "type": "Horror",
+      "tags": [
+        "prince-darkness"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "Prince Darkness",
+      "type": "Horror",
+      "tags": [
+        "prince-darkness"
+      ],
+      "coverImage": ""
+    }
+  }
+}

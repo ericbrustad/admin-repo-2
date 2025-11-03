@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const { slug, code, player, requestedRole } = req.body || {};
     if (!slug || !code || !player) return res.status(400).json({ ok:false, error:'Missing slug/code/player' });
 
-    const path = `public/games/${encodeURIComponent(slug)}/matches/${encodeURIComponent(code)}.json`;
+    const path = `public/game-data/${encodeURIComponent(slug)}/matches/${encodeURIComponent(code)}.json`;
     const existing = await getJsonFromRepo(path);
     if (!existing) return res.status(404).json({ ok:false, error:'Match not found' });
 

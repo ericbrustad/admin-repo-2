@@ -1,0 +1,53 @@
+{
+  "slug": "test",
+  "title": "test",
+  "coverImage": "",
+  "shortDescription": "",
+  "longDescription": "",
+  "type": "Mystery",
+  "mode": "single",
+  "tags": [
+    "test"
+  ],
+  "createdAt": "",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "",
+    "tags": [
+      "test"
+    ]
+  },
+  "sources": {
+    "legacyIndex": null,
+    "canonicalGame": {
+      "title": "test",
+      "type": "Mystery",
+      "tags": [
+        "test"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "test",
+      "type": "Mystery",
+      "tags": [
+        "test"
+      ],
+      "coverImage": ""
+    }
+  }
+}

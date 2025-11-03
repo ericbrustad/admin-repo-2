@@ -5,7 +5,7 @@
  *
  * Supports three sources (configure via env vars):
  * 1) Local public folder (default if CONTENT_SOURCE not set):
- *    - Reads /public/games/<slug>[/draft]/(config|missions).json
+ *    - Reads /public/game-data/<slug>[/draft]/(config|missions).json
  * 2) Remote HTTP base URL (CONTENT_BASE_URL):
  *    - Fetches `${CONTENT_BASE_URL}/${slug}/${maybeDraft}/file.json`
  * 3) GitHub repo via Contents API (CONTENT_SOURCE='github'):
@@ -15,7 +15,7 @@
 
 export function buildPaths({ slug, channel }) {
   const draftSuffix = channel === 'draft' ? '/draft' : '';
-  const rel = `games/${slug}${draftSuffix}`;
+  const rel = `game-data/${slug}${draftSuffix}`;
   return { relConfig: `${rel}/config.json`, relMissions: `${rel}/missions.json` };
 }
 

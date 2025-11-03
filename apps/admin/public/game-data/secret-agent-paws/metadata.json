@@ -1,0 +1,62 @@
+{
+  "slug": "secret-agent-paws",
+  "title": "Secret Agent PAWS",
+  "coverImage": "",
+  "shortDescription": "Undercover cats infiltrate the gala before the lasers sweep the vault.",
+  "longDescription": "",
+  "type": "Mystery",
+  "mode": "single",
+  "tags": [
+    "secret-agent-paws"
+  ],
+  "createdAt": "2024-01-12T09:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "Undercover cats infiltrate the gala before the lasers sweep the vault.",
+    "tags": [
+      "secret-agent-paws"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "secret-agent-paws",
+      "title": "Secret Agent PAWS",
+      "type": "Mystery",
+      "mode": "single",
+      "coverImage": "",
+      "shortDescription": "Undercover cats infiltrate the gala before the lasers sweep the vault.",
+      "channel": "draft",
+      "createdAt": "2024-01-12T09:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Secret Agent PAWS",
+      "type": "Mystery",
+      "tags": [
+        "secret-agent-paws"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "Secret Agent PAWS",
+      "type": "Mystery",
+      "tags": [
+        "secret-agent-paws"
+      ],
+      "coverImage": ""
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "slug": "jjj",
+  "title": "jjj",
+  "coverImage": "",
+  "shortDescription": "",
+  "longDescription": "",
+  "type": "Mystery",
+  "mode": "single",
+  "tags": [
+    "jjj"
+  ],
+  "createdAt": "",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "",
+    "tags": [
+      "jjj"
+    ]
+  },
+  "sources": {
+    "legacyIndex": null,
+    "canonicalGame": {
+      "title": "jjj",
+      "type": "Mystery",
+      "tags": [
+        "jjj"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "jjj",
+      "type": "Mystery",
+      "tags": [
+        "jjj"
+      ],
+      "coverImage": ""
+    }
+  }
+}

@@ -1,4 +1,4 @@
-// Create a new match file under: public/games/<slug>/matches/<code>.json
+// Create a new match file under: public/game-data/<slug>/matches/<code>.json
 // Body: { slug, code? }  -> returns { ok:true, code }
 import { commitJsonIfAbsent, cors } from '../../../lib/secureStore';
 
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     if (!slug) return res.status(400).json({ ok:false, error:'Missing slug' });
 
     const matchCode = (code || randomCode()).toLowerCase();
-    const path = `public/games/${encodeURIComponent(slug)}/matches/${encodeURIComponent(matchCode)}.json`;
+    const path = `public/game-data/${encodeURIComponent(slug)}/matches/${encodeURIComponent(matchCode)}.json`;
 
     const now = new Date().toISOString();
     const doc = {

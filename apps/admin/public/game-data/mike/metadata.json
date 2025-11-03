@@ -1,0 +1,62 @@
+{
+  "slug": "mike",
+  "title": "Mike",
+  "coverImage": "",
+  "shortDescription": "A quick pursuit scenario tuned for live testing with the ops team.",
+  "longDescription": "",
+  "type": "Chase",
+  "mode": "single",
+  "tags": [
+    "mike"
+  ],
+  "createdAt": "2024-01-16T09:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "A quick pursuit scenario tuned for live testing with the ops team.",
+    "tags": [
+      "mike"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "mike",
+      "title": "Mike",
+      "type": "Chase",
+      "mode": "single",
+      "coverImage": "",
+      "shortDescription": "A quick pursuit scenario tuned for live testing with the ops team.",
+      "channel": "draft",
+      "createdAt": "2024-01-16T09:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "mike",
+      "type": "Chase",
+      "tags": [
+        "mike"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "mike",
+      "type": "Chase",
+      "tags": [
+        "mike"
+      ],
+      "coverImage": ""
+    }
+  }
+}

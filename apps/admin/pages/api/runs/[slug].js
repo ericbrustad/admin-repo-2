@@ -88,18 +88,18 @@ export default async function handler(req, res) {
     const gameRepoBase = 'apps/game-web/public';
     if (session) {
       // Partial: write to runs/sessions/<session>.json (mirrored to game/)
-      const rootPath = joinPath(`public/games/${slug}/runs/sessions/${session}.json`);
+      const rootPath = joinPath(`public/game-data/${slug}/runs/sessions/${session}.json`);
       await putFile(rootPath, text, `run(partial ${slug}): ${session}`); wrote.push(rootPath);
       if (GAME_ENABLED) {
-        const gamePath = joinPath(`${gameRepoBase}/games/${slug}/runs/sessions/${session}.json`);
+        const gamePath = joinPath(`${gameRepoBase}/game-data/${slug}/runs/sessions/${session}.json`);
         await putFile(gamePath, text, `run(partial ${slug} game): ${session}`); wrote.push(gamePath);
       }
     } else {
       // Final: write to runs/<timestamp>.json (mirrored to game/)
-      const rootPath = joinPath(`public/games/${slug}/runs/${stamp}.json`);
+      const rootPath = joinPath(`public/game-data/${slug}/runs/${stamp}.json`);
       await putFile(rootPath, text, `run(${slug}): ${stamp}`); wrote.push(rootPath);
       if (GAME_ENABLED) {
-        const gamePath = joinPath(`${gameRepoBase}/games/${slug}/runs/${stamp}.json`);
+        const gamePath = joinPath(`${gameRepoBase}/game-data/${slug}/runs/${stamp}.json`);
         await putFile(gamePath, text, `run(${slug} game): ${stamp}`); wrote.push(gamePath);
       }
     }

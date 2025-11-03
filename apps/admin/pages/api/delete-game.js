@@ -44,7 +44,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') { res.setHeader('Allow','POST'); return res.status(405).end(); }
   const { slug } = req.body || {};
   if (!slug) return res.status(400).json({ ok: false, error: 'Missing slug' });
-  const dir = `public/games/${slug}`;
+  const dir = `public/game-data/${slug}`;
   try {
     // list directory; delete all files inside
     let entries = [];
@@ -67,10 +67,10 @@ export default async function handler(req, res) {
       } catch {}
     }
     // update index.json
-    const idx = await get('public/games/index.json');
+    const idx = await get('public/game-data/index.json');
     const list = JSON.parse(Buffer.from(idx.content, 'base64').toString('utf-8') || '[]');
     const next = Array.isArray(list) ? list.filter(x => x.slug !== slug) : [];
-    await put('public/games/index.json', JSON.stringify(next, null, 2), `chore: update games index (delete ${slug})`, idx.sha);
+    await put('public/game-data/index.json', JSON.stringify(next, null, 2), `chore: update games index (delete ${slug})`, idx.sha);
 
     return res.json({ ok: true, slug, gameProjectEnabled: GAME_ENABLED });
   } catch (e) {

@@ -18,9 +18,9 @@ export default async function handler(req, res) {
 
     const join = (...parts) => parts.filter(Boolean).join('/').replace(/\/+/g, '/');
 
-    const draftPath = join(BASE_DIR, 'public/games', slug, 'draft', 'config.json');
-    const pubPath   = join(BASE_DIR, 'public/games', slug, 'config.json');
-    const listGamesPath = join(BASE_DIR, 'public/games');
+    const draftPath = join(BASE_DIR, 'public/game-data', slug, 'draft', 'config.json');
+    const pubPath   = join(BASE_DIR, 'public/game-data', slug, 'config.json');
+    const listGamesPath = join(BASE_DIR, 'public/game-data');
 
     const urls = {
       draftUrl: `https://api.github.com/repos/${OWNER}/${REPO}/contents/${draftPath}?ref=${encodeURIComponent(BRANCH)}`,

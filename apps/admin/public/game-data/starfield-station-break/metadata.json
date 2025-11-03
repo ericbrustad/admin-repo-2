@@ -1,0 +1,56 @@
+{
+  "slug": "starfield-station-break",
+  "title": "Starfield Station Break",
+  "coverImage": "/media/mediapool/Images/covers/starfield-station-break.svg",
+  "shortDescription": "Sneak through sunrise-lit docking bays to free the crew before lockdown.",
+  "longDescription": "A covert dawn extraction beneath the capital's transit station. Follow beacon clues, disable holo-decoys, and guide the shuttle pilots out before the shutters seal for the day.",
+  "type": "Sci-Fi",
+  "mode": "single",
+  "tags": [
+    "starfield-station-break",
+    "default-game"
+  ],
+  "createdAt": "2024-10-08T08:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "A covert dawn extraction beneath the capital's transit station. Follow beacon clues, disable holo-decoys, and guide the shuttle pilots out before the shutters seal for the day.",
+    "shortDescription": "Sneak through sunrise-lit docking bays to free the crew before lockdown.",
+    "tags": [
+      "starfield-station-break",
+      "default-game"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "starfield-station-break",
+      "title": "Starfield Station Break",
+      "type": "Sci-Fi",
+      "mode": "single",
+      "coverImage": "/media/mediapool/Images/covers/starfield-station-break.svg",
+      "shortDescription": "Sneak through sunrise-lit docking bays to free the crew before lockdown.",
+      "channel": "draft",
+      "createdAt": "2024-10-08T08:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Starfield Station Break",
+      "type": "Sci-Fi",
+      "tags": [
+        "starfield-station-break",
+        "default-game"
+      ],
+      "coverImage": "/media/mediapool/Images/covers/starfield-station-break.svg",
+      "shortDescription": "Sneak through sunrise-lit docking bays to free the crew before lockdown.",
+      "longDescription": "A covert dawn extraction beneath the capital's transit station. Follow beacon clues, disable holo-decoys, and guide the shuttle pilots out before the shutters seal for the day.",
+      "deployEnabled": true
+    },
+    "draftGame": {}
+  }
+}

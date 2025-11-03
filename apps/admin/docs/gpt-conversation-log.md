@@ -494,3 +494,9 @@
 **You:** CODEx wants the Saved Games dropdown to stop drifting between folders—synchronize the filesystem scan so every slug uses the same metadata no matter which directory it came from, mirror the GitHub writes into the canonical admin path, and loop ChatGPT-5 in when the recall values line up.
 
 **GPT:** Confirmed with ChatGPT-5 thinking, taught `find-games` to hydrate entries from `index.json`/meta files so drafts and published copies share titles, covers, and descriptors, extended save+publish to mirror missions/config into `public/games/<slug>/`, and logged it here so the saved games catalog stays consistent across locations.
+
+**Timestamp:** 2025-11-07T09:20:00Z
+
+**You:** CODEx asked for a unified game filesystem that preserves the legacy JSON plus the new local drafts—copy every game's metadata into a fresh structure the Settings buttons can use, drop the old `public/games` dependency, and update the footer so ChatGPT-5 can see the repo snapshot at a glance.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, generated the `public/game-data` tree with merged metadata + channel copies, wired `find-games`, the load/save APIs, and the local draft store to hydrate from the new catalog module, refreshed the delete/list helpers, and extended the Settings footer with an explicit Dev Build line so the repo/branch/commit/deployment stamp stays visible at the bottom of Settings.
