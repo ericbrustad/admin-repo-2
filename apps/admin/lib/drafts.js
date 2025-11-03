@@ -32,21 +32,27 @@ export function slugify(title) {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 }
-export function ensureUniqueSlug(wantedSlug) {
+export function ensureUniqueSlug(wantedSlug, ignoreSlug) {
   const drafts = listDrafts();
   const base = wantedSlug || 'untitled';
-  // "default" is reserved for the Default game
-  if (base === 'default' && !drafts.some(d => d.slug === 'default')) return 'default';
+  const skip = ignoreSlug ? String(ignoreSlug) : null;
+
+  const slugTaken = (slug) => drafts.some(d => d.slug === slug && (!skip || d.slug !== skip));
+
+  // "default" is reserved for the Default game (unless we're preserving the existing default slug)
   if (base === 'default') {
+    const defaultAvailable = !slugTaken('default');
+    if (defaultAvailable) return 'default';
     // If default exists, fall back to untitled-2 …
     let c = 2;
     let cand = `untitled-${c++}`;
-    while (drafts.some(d => d.slug === cand)) cand = `untitled-${c++}`;
+    while (slugTaken(cand)) cand = `untitled-${c++}`;
     return cand;
   }
+
   let candidate = base;
   let i = 2;
-  while (drafts.some(d => d.slug === candidate)) {
+  while (slugTaken(candidate)) {
     candidate = `${base}-${i++}`;
   }
   return candidate;

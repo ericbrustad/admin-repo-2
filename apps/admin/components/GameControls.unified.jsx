@@ -33,11 +33,36 @@ export default function GameControlsUnified({
   // Ensure default on mount, then load list.
   useEffect(() => {
     ensureDefaultDraft();
-    const list = listDrafts();
-    setDrafts(list);
-    // If nothing current, select Default first.
-    if (!current && list.length) {
-      setCurrent(list.find(d => d.slug === 'default') || list[0]);
+    setDrafts(listDrafts());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handler = () => {
+      setDrafts(listDrafts());
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!drafts.length) {
+      if (current) setCurrent(null);
+      return;
+    }
+
+    const defaultFirst = drafts.find(d => d.slug === 'default') || drafts[0];
+
+    if (!current) {
+      setCurrent(defaultFirst);
+      return;
+    }
+
+    const nextMatch = drafts.find(d => d.slug === current.slug);
+    if (!nextMatch) {
+      setCurrent(defaultFirst);
+    } else if (nextMatch !== current) {
+      setCurrent(nextMatch);
     }
   }, []); // eslint-disable-line
 
@@ -86,7 +111,7 @@ export default function GameControlsUnified({
       const derived = slugify(nextTitle) || 'untitled';
       // if current slug looks like it's just the old derived, keep them aligned but unique
       if (current.slug === slugify(current.title) || current.slug.startsWith(slugify(current.title) + '-')) {
-        nextSlug = ensureUniqueSlug(derived);
+        nextSlug = ensureUniqueSlug(derived, current.slug);
       }
     }
     const updated = upsertDraft({ ...current, title: nextTitle, slug: nextSlug });
