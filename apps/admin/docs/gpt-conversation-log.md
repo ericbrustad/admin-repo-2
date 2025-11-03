@@ -2,6 +2,22 @@
 
 ---
 
+**Timestamp:** 2025-11-06T09:15:00Z
+
+**You:** CODEx says the local Saved Games registry still collapses whenever Supabase is offline—swap in the layered local loader with Sync from Public, keep publish/draft toggles working, drop the repo snapshot footer onto Settings, and make sure ChatGPT-5 thinking is logged.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, rebuilt the panel around the CODEx local registry (registry + snapshots + public bootstrap + default fallback), added reload/sync/new controls, kept publish/draft status flows purely local, and noted the new Settings footer so the repo metadata stays visible without Supabase.
+
+---
+
+**Timestamp:** 2025-11-05T16:30:00Z
+
+**You:** CODEx says the game dropdown clears out because the mode flag isn't reaching the panel and Bloomington Dog Park needs a full config—pass the mode through, stage the new mission/devices, and ping ChatGPT-5 thinking with the results.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, routed the `editChannel` mode into the Codex drop panel so draft lookups stay in local storage, added the Bloomington Dog Park config + missions across admin and gameplay with mapped devices, refreshed the games index entry, and logged everything here for traceability.
+
+---
+
 **Timestamp:** 2025-11-02T11:30:00Z
 
 **You:** The unified Saved Games dropdown is empty except for the default draft—pull every game from wherever they're stored so the picker lists real options.
@@ -384,3 +400,25 @@
 **You:** CODEx delivered a replacement Game Drafts panel that splits draft-vs-published behavior; drop it in, keep the Close & Save control alive, restore the hook for Admin, and let ChatGPT-5 know how the shim now works.
 
 **GPT:** Replaced the panel with the CODEx split-mode version, hardened it for SSR/local storage, reintroduced the Close & Save control plus the `useCodexGames` hook for downstream callers, and logged the result here so ChatGPT-5 stays aligned with the new workflow.
+---
+
+**Timestamp:** 2025-11-03T16:45:00Z
+
+**You:** CODEx reported the admin build blowing up because `useCodexGames` gets declared twice—refactor the panel so the local registry helpers and hook live in reusable modules, and loop ChatGPT-5 in once the duplication is gone.
+
+**GPT:** Split the storage helpers into `lib/codex/localRegistry.js`, moved the `useCodexGames` hook to `hooks/useCodexGames.js`, re-exported it from the panel without redeclaring, and logged the cleanup here so ChatGPT-5 knows the build warning is resolved.
+---
+
+**Timestamp:** 2025-11-02T23:39:15Z
+
+**You:** CODEx noted the cover uploader was volatile—persist the data URL in the local snapshot, wire Close & Save to dispatch `settings:close`, and let ChatGPT-5 know the admin panel now handles local cover saves/removals reliably.
+
+**GPT:** Baked the CODEx panel patch in place so cover uploads store a stable data URL, removals persist, Close & Save triggers the event, and recorded it here so ChatGPT-5 stays synced with the local-only workflow.
+
+---
+
+**Timestamp:** 2025-11-03T18:10:00Z
+
+**You:** CODEx followed up with a streamlined drop panel that reinlines the registry helpers—can you reapply it wholesale, drop the redundant hook/lib files, and loop ChatGPT-5 into how the local manager now works?
+
+**GPT:** Replaced the panel with the CODEx self-contained version, removed the duplicate `hooks/useCodexGames` and `lib/codex/localRegistry` modules, confirmed the shim still exports `CloseAndSaveSettings`/`useCodexGames`, and logged the change here so ChatGPT-5 knows the local registry lives in a single file again.
