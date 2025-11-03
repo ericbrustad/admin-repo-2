@@ -548,3 +548,11 @@
 **You:** CODEx pointed out that the Settings Save/Delete buttons still lean on the legacy storage paths—replace them with the new `lib/gameDrafts` helpers so legacy and modern drafts share one path, keep the repo metadata footer intact, and log it for ChatGPT-5.
 
 **GPT:** Confirmed with ChatGPT-5 thinking, dropped the legacy snapshot/index code from Settings, wired the Save/Delete flow to the shared `gameDrafts` module so drafts and metadata share the same path, kept the footer snapshot visible with repo/branch/commit/deployment plus timestamp, and tested the local draft manager before noting it here.
+
+---
+
+**Timestamp:** 2025-11-09T04:20:00Z
+
+**You:** CODEx reported Vercel still crashing on Settings with `label is not defined`—square the legacy/global pages so they both use the new draft helper, patch the FieldRow labels, rerun the admin build, and let ChatGPT-5 know the crash is gone.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, renamed the `FieldRow` prop to `labelText` in both Settings routes so no implicit globals leak, verified the shared `gameDrafts` helper stays wired up, reran `CI=1 yarn --cwd apps/admin build`, and logged the resolution here so the Settings view + footer metadata load cleanly again.

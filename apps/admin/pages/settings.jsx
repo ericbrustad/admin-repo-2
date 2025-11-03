@@ -152,10 +152,10 @@ function Section({ title, children }) {
   );
 }
 
-function FieldRow({ label, children }) {
+function FieldRow({ labelText, children }) {
   return (
     <div style={ST.row}>
-      <div style={ST.label}>{label}</div>
+      <div style={ST.label}>{labelText}</div>
       <div style={ST.value}>{children}</div>
     </div>
   );
@@ -250,10 +250,10 @@ function GeoControls({ geo, onChange, onApplyToGame }) {
 
   return (
     <div>
-      <FieldRow label="Latitude">
+      <FieldRow labelText="Latitude">
         <input style={ST.input} inputMode="decimal" value={lat} onChange={(e)=>setLat(e.target.value)} />
       </FieldRow>
-      <FieldRow label="Longitude">
+      <FieldRow labelText="Longitude">
         <input style={ST.input} inputMode="decimal" value={lng} onChange={(e)=>setLng(e.target.value)} />
       </FieldRow>
       <div style={ST.rowBtns}>
@@ -431,10 +431,10 @@ export default function SettingsGlobalFinalPage() {
       </Section>
 
       <Section title="Game Meta">
-        <FieldRow label="Title">
+        <FieldRow labelText="Title">
           <input style={ST.input} value={game?.title || ''} onChange={(e)=>onTitleChange(e.target.value)} placeholder="Game title" />
         </FieldRow>
-        <FieldRow label="Slug">
+        <FieldRow labelText="Slug">
           <input style={{...ST.input, opacity:0.7}} value={game?.slug || ''} onChange={(e)=>onSlugChange(e.target.value)} />
         </FieldRow>
         <div style={ST.help}>Changing the title updates the slug automatically.</div>
