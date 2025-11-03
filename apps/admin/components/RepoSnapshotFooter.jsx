@@ -374,7 +374,9 @@ export default function RepoSnapshotFooter() {
         </div>
       )}
       <div style={styles.metaLine}>Dev Environment Snapshot — {metaDevSummary}</div>
-      <div style={styles.metaLine}>{metaDevFooterLine}</div>
+      <div style={styles.metaLine}>
+        Dev Build Info — Repo {metaRepoFooterLabel} • Branch {metaBranchFooterLabel} • Commit {metaCommitFooterLabel} • Deployment {metaDeploymentFooterLabel} • Captured {metaFooterNowLabel}
+      </div>
     </footer>
   );
 }

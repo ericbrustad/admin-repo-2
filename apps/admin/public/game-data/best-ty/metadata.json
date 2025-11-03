@@ -1,0 +1,53 @@
+{
+  "slug": "best-ty",
+  "title": "best ty",
+  "coverImage": "",
+  "shortDescription": "",
+  "longDescription": "",
+  "type": "Mystery",
+  "mode": "single",
+  "tags": [
+    "best-ty"
+  ],
+  "createdAt": "",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "",
+    "tags": [
+      "best-ty"
+    ]
+  },
+  "sources": {
+    "legacyIndex": null,
+    "canonicalGame": {
+      "title": "best ty",
+      "type": "Mystery",
+      "tags": [
+        "best-ty"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "best ty",
+      "type": "Mystery",
+      "tags": [
+        "best-ty"
+      ],
+      "coverImage": ""
+    }
+  }
+}

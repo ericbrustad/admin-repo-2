@@ -1,0 +1,62 @@
+{
+  "slug": "slug-bug",
+  "title": "Slug BUG!",
+  "coverImage": "",
+  "shortDescription": "Zap neon pests across the strip before they crash the night crawl.",
+  "longDescription": "",
+  "type": "Arcade",
+  "mode": "single",
+  "tags": [
+    "slug-bug"
+  ],
+  "createdAt": "2024-01-14T09:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    },
+    "draft": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "Zap neon pests across the strip before they crash the night crawl.",
+    "tags": [
+      "slug-bug"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "slug-bug",
+      "title": "Slug BUG!",
+      "type": "Arcade",
+      "mode": "single",
+      "coverImage": "",
+      "shortDescription": "Zap neon pests across the strip before they crash the night crawl.",
+      "channel": "draft",
+      "createdAt": "2024-01-14T09:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Slug BUG!",
+      "type": "Arcade",
+      "tags": [
+        "slug-bug"
+      ],
+      "coverImage": ""
+    },
+    "draftGame": {
+      "title": "Slug BUG!",
+      "type": "Arcade",
+      "tags": [
+        "slug-bug"
+      ],
+      "coverImage": ""
+    }
+  }
+}

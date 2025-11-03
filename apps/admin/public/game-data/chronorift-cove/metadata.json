@@ -1,0 +1,53 @@
+{
+  "slug": "chronorift-cove",
+  "title": "Chronorift Cove",
+  "coverImage": "/media/mediapool/Images/covers/chronorift-cove.svg",
+  "shortDescription": "Stabilize shimmering tides and rescue explorers from a time-torn harbor.",
+  "longDescription": "The cove fractures in waves of time. Activate chrono buoys, anchor the currents, and chart a safe path before the anomaly swallows the harbor.",
+  "type": "Adventure",
+  "mode": "single",
+  "tags": [
+    "chronorift-cove"
+  ],
+  "createdAt": "2024-10-08T08:10:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "The cove fractures in waves of time. Activate chrono buoys, anchor the currents, and chart a safe path before the anomaly swallows the harbor.",
+    "shortDescription": "Stabilize shimmering tides and rescue explorers from a time-torn harbor.",
+    "tags": [
+      "chronorift-cove"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "chronorift-cove",
+      "title": "Chronorift Cove",
+      "type": "Adventure",
+      "mode": "single",
+      "coverImage": "/media/mediapool/Images/covers/chronorift-cove.svg",
+      "shortDescription": "Stabilize shimmering tides and rescue explorers from a time-torn harbor.",
+      "channel": "draft",
+      "createdAt": "2024-10-08T08:10:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Chronorift Cove",
+      "type": "Adventure",
+      "tags": [
+        "chronorift-cove"
+      ],
+      "coverImage": "/media/mediapool/Images/covers/chronorift-cove.svg",
+      "shortDescription": "Stabilize time-tossed tides and guide explorers through a shimmering coastal rift.",
+      "longDescription": "The cove fractures in waves of time. Activate chrono buoys, anchor the currents, and chart a safe path before the anomaly swallows the harbor.",
+      "deployEnabled": true
+    },
+    "draftGame": {}
+  }
+}

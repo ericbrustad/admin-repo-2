@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { existsSync } from 'fs';
 import path from 'path';
 import { supaService } from '../../lib/supabase/server.js';
 
@@ -16,6 +17,39 @@ function normalizeSlug(input) {
   if (!slug) return 'default';
   if (slug === 'root' || slug === 'legacy-root') return 'default';
   return slug;
+}
+
+const GAME_DATA_BASES = [
+  path.join(process.cwd(), 'apps', 'admin', 'public', 'game-data'),
+  path.join(process.cwd(), 'apps', 'game-web', 'public', 'game-data'),
+  path.join(process.cwd(), 'public', 'game-data'),
+];
+
+function resolveGameDataPaths(slug, channel = 'draft') {
+  const safeChannel = channel === 'published' ? 'published' : 'draft';
+  for (const base of GAME_DATA_BASES) {
+    const channelDir = path.join(base, slug, safeChannel);
+    if (existsSync(channelDir)) {
+      return {
+        missionsFile: path.join(channelDir, 'missions.json'),
+        configFile: path.join(channelDir, 'config.json'),
+        devicesFile: path.join(channelDir, 'devices.json'),
+      };
+    }
+
+    const legacyDraftDir = path.join(base, slug, safeChannel === 'published' ? '' : 'draft');
+    const missionsCandidate = path.join(legacyDraftDir, 'missions.json');
+    const configCandidate = path.join(legacyDraftDir, 'config.json');
+    const devicesCandidate = path.join(legacyDraftDir, 'devices.json');
+    if (existsSync(missionsCandidate) || existsSync(configCandidate) || existsSync(devicesCandidate)) {
+      return {
+        missionsFile: missionsCandidate,
+        configFile: configCandidate,
+        devicesFile: devicesCandidate,
+      };
+    }
+  }
+  return null;
 }
 
 function resolveLegacyPaths(slug, channel = 'draft') {
@@ -75,7 +109,8 @@ export default async function handler(req, res) {
     }
   }
 
-  const { missionsFile, configFile, devicesFile } = resolveLegacyPaths(slug, channel);
+  const modernPaths = resolveGameDataPaths(slug, channel);
+  const { missionsFile, configFile, devicesFile } = modernPaths || resolveLegacyPaths(slug, channel);
   const [legacyMissions, legacyConfig, legacyDevices] = await Promise.all([
     readJsonFile(missionsFile),
     readJsonFile(configFile),

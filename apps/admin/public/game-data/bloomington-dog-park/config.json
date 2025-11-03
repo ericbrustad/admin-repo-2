@@ -1,0 +1,120 @@
+{
+  "splash": {
+    "enabled": false,
+    "mode": "single"
+  },
+  "game": {
+    "title": "Bloomington Dog Park",
+    "slug": "bloomington-dog-park",
+    "type": "Exploration",
+    "mode": "single",
+    "tags": [
+      "bloomington",
+      "dog-park"
+    ],
+    "coverImage": "/media/covers/bloomington-dog-park.jpg"
+  },
+  "forms": {
+    "players": 1
+  },
+  "missions": [
+    "m01"
+  ],
+  "devices": [
+    {
+      "id": "device-water-bowl",
+      "title": "Water Bowl Sensor",
+      "type": "signal",
+      "iconKey": "water-drop",
+      "pickupRadius": 50,
+      "lat": 44.8326,
+      "lng": -93.3141,
+      "mediaUrl": "/media/devices/water-bowl.png",
+      "trigger": {
+        "enabled": false,
+        "actionType": "media",
+        "actionTarget": "",
+        "actionLabel": "",
+        "actionThumbnail": "",
+        "triggerDeviceId": "",
+        "triggerDeviceLabel": "",
+        "triggeredResponseKey": "",
+        "triggeredMissionId": ""
+      }
+    },
+    {
+      "id": "device-leash-hook",
+      "title": "Leash Hook Beacon",
+      "type": "signal",
+      "iconKey": "hook",
+      "pickupRadius": 50,
+      "lat": 44.8324,
+      "lng": -93.3138,
+      "mediaUrl": "/media/devices/leash-hook.png",
+      "trigger": {
+        "enabled": false,
+        "actionType": "media",
+        "actionTarget": "",
+        "actionLabel": "",
+        "actionThumbnail": "",
+        "triggerDeviceId": "",
+        "triggerDeviceLabel": "",
+        "triggeredResponseKey": "",
+        "triggeredMissionId": ""
+      }
+    },
+    {
+      "id": "device-gate-camera",
+      "title": "Gate Camera",
+      "type": "camera",
+      "iconKey": "camera",
+      "pickupRadius": 50,
+      "lat": 44.8327,
+      "lng": -93.3142,
+      "mediaUrl": "/media/devices/gate-camera.png",
+      "trigger": {
+        "enabled": false,
+        "actionType": "media",
+        "actionTarget": "",
+        "actionLabel": "",
+        "actionThumbnail": "",
+        "triggerDeviceId": "",
+        "triggerDeviceLabel": "",
+        "triggeredResponseKey": "",
+        "triggeredMissionId": ""
+      }
+    }
+  ],
+  "powerups": [],
+  "media": {
+    "rewardsPool": [],
+    "penaltiesPool": []
+  },
+  "icons": {
+    "missions": [],
+    "devices": [],
+    "rewards": []
+  },
+  "appearance": {
+    "fontFamily": "\"Work Sans\", \"Segoe UI\", sans-serif",
+    "fontSizePx": 24,
+    "fontColor": "#1f2933",
+    "textBgColor": "#ffffff",
+    "textBgOpacity": 0.85,
+    "screenBgColor": "#e0f2f1",
+    "screenBgOpacity": 0.6,
+    "screenBgImage": "",
+    "textAlign": "center",
+    "textVertical": "top",
+    "screenBgImageEnabled": false
+  },
+  "map": {
+    "centerLat": 44.8325,
+    "centerLng": -93.314,
+    "defaultZoom": 17
+  },
+  "geofence": {
+    "mode": "test"
+  },
+  "appearanceSkin": "nature-meadow"
+}

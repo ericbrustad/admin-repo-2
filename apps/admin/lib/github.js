@@ -55,7 +55,7 @@ export async function listDirs(relPath) {
 
 /**
  * bulkCommitMixed(files, message)
- * - files: [{ path: 'public/games/slug/file.json', content: '...', repoPath: 'apps/game-web/public/games/slug/file.json' }]
+ * - files: [{ path: 'public/game-data/slug/file.json', content: '...', repoPath: 'apps/game-web/public/game-data/slug/file.json' }]
  * - will write `path` relative to BASE_DIR and `repoPath` as repo-root path.
  *
  * This implementation is robust to concurrent commits: if updating the ref fails (422),

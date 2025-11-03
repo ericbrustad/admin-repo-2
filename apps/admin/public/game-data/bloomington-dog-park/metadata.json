@@ -1,0 +1,55 @@
+{
+  "slug": "bloomington-dog-park",
+  "title": "Bloomington Dog Park",
+  "coverImage": "/media/covers/bloomington-dog-park.jpg",
+  "shortDescription": "Track the missing collar and steady every sensor around the Bloomington dog park.",
+  "longDescription": "",
+  "type": "Exploration",
+  "mode": "single",
+  "tags": [
+    "bloomington",
+    "dog-park"
+  ],
+  "createdAt": "2024-11-05T15:00:00.000Z",
+  "updatedAt": "",
+  "channel": "draft",
+  "channels": {
+    "published": {
+      "hasConfig": true,
+      "hasMissions": true,
+      "updatedAt": ""
+    }
+  },
+  "summary": {
+    "description": "",
+    "shortDescription": "Track the missing collar and steady every sensor around the Bloomington dog park.",
+    "tags": [
+      "bloomington",
+      "dog-park"
+    ]
+  },
+  "sources": {
+    "legacyIndex": {
+      "slug": "bloomington-dog-park",
+      "title": "Bloomington Dog Park",
+      "type": "Exploration",
+      "mode": "single",
+      "coverImage": "/media/covers/bloomington-dog-park.jpg",
+      "shortDescription": "Track the missing collar and steady every sensor around the Bloomington dog park.",
+      "channel": "draft",
+      "createdAt": "2024-11-05T15:00:00.000Z"
+    },
+    "canonicalGame": {
+      "title": "Bloomington Dog Park",
+      "slug": "bloomington-dog-park",
+      "type": "Exploration",
+      "mode": "single",
+      "tags": [
+        "bloomington",
+        "dog-park"
+      ],
+      "coverImage": "/media/covers/bloomington-dog-park.jpg"
+    },
+    "draftGame": {}
+  }
+}
