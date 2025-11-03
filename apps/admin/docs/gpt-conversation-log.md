@@ -430,3 +430,11 @@
 **GPT:** Renamed the helper to `applyAdminPageTitle` so only one title setter exists, re-ran `CI=1 yarn build:admin` to confirm webpack passes, and recorded the fix here so ChatGPT-5 tracks the clean build status.
  
 ---
+
+---
+
+**Timestamp:** 2025-11-05T14:12:00Z
+
+**You:** Replace the legacy multi-path game controls with the new local-draft manager, wire in the health/publish API shims, and make sure the settings footer shows the repo, branch, commit, and Vercel info with a fresh timestamp—log the handoff for ChatGPT-5.
+
+**GPT:** Swapped in the unified `GameControlsUnified` component backed by the new `lib/drafts` store, removed the Codex registry modules, added `/api/health` and `/api/publish-game`, refreshed the settings footer summary, and recorded the update here so ChatGPT-5 tracks the local-first workflow and deployment snapshot.
