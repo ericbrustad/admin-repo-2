@@ -76,6 +76,7 @@ function slugify(value) {
 function readRegistry() {
   return loadJSON(REG_KEY, []);
 }
+function setPageTitle(name){ if(typeof document!=='undefined') document.title=`${name||'Admin'} — Admin`; }
 
 function writeRegistry(list) {
   const clean = Array.isArray(list) ? list.filter(Boolean) : [];
@@ -827,16 +828,32 @@ export function useCodexGames() {
 
 export function CloseAndSaveSettings({ onSave }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const reload = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (!hasStorage()) {
+        setGames([]);
+        return;
+      }
+      await ensureRegistryBootstrapped();
+      setGames(readRegistry() || []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load games';
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const handleClick = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     try {
-      if (typeof onSave === 'function') {
-        const result = onSave();
-        if (result && typeof result.then === 'function') {
-          await result;
-        }
+      if (onSave) {
+        await onSave();
       }
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('settings:close'));
@@ -860,8 +877,9 @@ export function CloseAndSaveSettings({ onSave }) {
         fontWeight: 800,
         minWidth: 220,
       }}
+      title="Save all settings and close"
     >
-      {busy ? 'Saving…' : 'Close & Save Settings'}
+      {busy ? 'Saving…' : label}
     </button>
   );
 }

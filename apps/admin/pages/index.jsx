@@ -4884,51 +4884,51 @@ export default function Admin() {
       const list = Array.isArray(unifiedSupabaseGames) ? unifiedSupabaseGames : [];
       let match = game || null;
       let slug = '';
-      let channel = 'draft';
+      let channel = match?.channel === 'published' || match?.tag === 'published' ? 'published' : 'draft';
 
       const pickTitle = (a, b) => (a && String(a).trim()) || (b && String(b).trim()) || '';
+      const rawValue = typeof value === 'string' ? value.trim() : '';
 
-      if (value === 'default::draft' || game?.slug === 'default') {
+      if (rawValue === 'default::draft' || rawValue === 'default' || match?.slug === 'default') {
         slug = 'default';
         channel = 'draft';
         match = match || { slug: 'default', channel: 'draft', title: 'Starfield Station Break' };
-      } else if (typeof value === 'string' && value.startsWith('slug:')) {
-        const [slugValue, channelValue] = value.slice(5).split('::');
+      }
+
+      if (!slug && rawValue.startsWith('slug:')) {
+        const [slugValue, channelValue] = rawValue.slice(5).split('::');
         slug = (slugValue || '').trim();
-        channel = channelValue === 'published' ? 'published' : 'draft';
-        if (!match && slug) {
-          match =
-            list.find(e => (e?.slug || '').trim() === slug && (e?.channel || 'draft') === channel) ||
-            list.find(e => (e?.slug || '').trim() === slug) ||
-            null;
-        }
-      } else if (typeof value === 'string' && value.startsWith('id:')) {
-        const [idValue, channelValue] = value.slice(3).split('::');
+        channel = channelValue === 'published' ? 'published' : channel;
+      } else if (!slug && rawValue.startsWith('id:')) {
+        const [idValue, channelValue] = rawValue.slice(3).split('::');
         match = match || list.find(e => String(e?.id ?? '') === idValue) || null;
         if (match) {
           slug = (match.slug || '').trim();
-          channel = channelValue === 'published'
-            ? 'published'
-            : (match.channel === 'published' ? 'published' : 'draft');
+          channel = channelValue === 'published' ? 'published' : (match.channel === 'published' ? 'published' : 'draft');
         }
-      } else {
-        match = match || list.find(e => String(e?.id ?? '') === String(value ?? '')) || null;
-        if (match) {
-          slug = (match.slug || '').trim();
-          channel = match.channel === 'published' ? 'published' : 'draft';
+      } else if (!slug && rawValue) {
+        slug = rawValue;
+      }
+
+      if (!slug && match) slug = (match.slug || '').trim();
+      if (!slug) {
+        const fallback = list.find(entry => (entry?.slug || '').trim());
+        if (fallback) {
+          match = match || fallback;
+          slug = (fallback.slug || '').trim();
+          channel = fallback.channel === 'published' ? 'published' : 'draft';
         }
       }
 
-    if (!slug && match) slug = (match.slug || '').trim();
-    if (!slug) { setSelectionLock(false); return; }
-    if (slug === 'default') channel = 'draft'; // default is always draft
+      if (!slug) { setSelectionLock(false); return; }
+      if (slug === 'default') channel = 'draft'; // default is always draft
 
-    const canonicalSlug = resolveContentSlug(slug);
-    const canonicalConfigPath = `public/games/${canonicalSlug}/config.json`;
-    const canonicalMissionsPath = `public/games/${canonicalSlug}/missions.json`;
+      const canonicalSlug = resolveContentSlug(slug);
+      const canonicalConfigPath = `public/games/${canonicalSlug}/config.json`;
+      const canonicalMissionsPath = `public/games/${canonicalSlug}/missions.json`;
 
-    // Prefer local snapshot (drafts stay local)
-    const local = readLocalSnapshotFor(slug, channel);
+      // Prefer local snapshot (drafts stay local)
+      const local = readLocalSnapshotFor(slug, channel);
       const localConfig = local?.snapshot?.data?.config && typeof local.snapshot.data.config === 'object'
         ? local.snapshot.data.config : null;
       const localSuite = local?.snapshot?.data?.suite && typeof local.snapshot.data.suite === 'object'
@@ -6572,7 +6572,6 @@ export default function Admin() {
                 handleUnifiedGameChange(value, game);
               }}
               onCloseAndSave={handleSaveAllSettings}
-              onStatusChange={handleUnifiedStatusChange}
             />
             <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
               <div>
