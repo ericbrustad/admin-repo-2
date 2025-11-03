@@ -3,12 +3,18 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 
+import {
+  saveDraft,
+  deleteDraft,
+  listDrafts,
+  loadDraft,
+  slugify,
+} from 'lib/gameDrafts';
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Local Storage Keys & Helpers
 // ───────────────────────────────────────────────────────────────────────────────
 const LS = {
-  INDEX: 'esx:games:index',                 // Array<{ slug, title, channel, published, updated_at }>
-  GAME_PREFIX: 'esx:game:',                 // Key shape: esx:game:<slug>:<channel>
   DEF_ANY: 'esx:defaults:any',              // defaultGameSlug
   DEF_PUB: 'esx:defaults:pub',              // defaultPublishedGameSlug
   GEO: 'esx:geo:default',                   // { lat, lng }
@@ -17,13 +23,6 @@ const LS = {
 function isBrowser() { return typeof window !== 'undefined'; }
 function nowIso() { return new Date().toISOString(); }
 function clampNum(x) { const n = Number(x); return Number.isFinite(n) ? n : 0; }
-function normalizeSlug(s) {
-  return String(s || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'untitled';
-}
 function labelForGame(g) {
   const base = g.title || g.slug;
   const tag = g.channel === 'published' ? ' (published)' : ' (draft)';
@@ -49,11 +48,6 @@ function storageSet(key, value) {
   if (!isBrowser()) return false;
   try { window.localStorage.setItem(key, value); return true; } catch { return false; }
 }
-function storageRemove(key) {
-  if (!isBrowser()) return false;
-  try { window.localStorage.removeItem(key); return true; } catch { return false; }
-}
-
 // ───────────────────────────────────────────────────────────────────────────────
 // Minimal Game Snapshot shape (keeps map + appearance + suite/devices hooks)
 // ───────────────────────────────────────────────────────────────────────────────
@@ -81,24 +75,47 @@ function defaultConfig() {
   };
 }
 
-function makeSnapshot(title, slug) {
-  const _slug = normalizeSlug(slug || title);
+function createGameTemplate(title, slug) {
+  const base = slug || title || '';
+  const normalized = base ? slugify(base) : '';
+  const safeTitle = title || normalized || '';
   return {
-    meta: { slug: _slug, title: title || _slug, channel: 'draft' },
-    data: {
-      suite: [], // missions/etc.
-      config: defaultConfig(),
-    },
+    title: safeTitle,
+    slug: normalized,
+    channel: 'draft',
+    appearance: defaultAppearance(),
+    coverUrl: '',
+    config: defaultConfig(),
+    missions: [],
+    devices: [],
   };
 }
 
-// Apply global geo (lat/lng) to snapshot center (safe, no deep mutation surprises)
-function applyGeoToSnapshot(snapshot, lat, lng) {
-  if (!snapshot?.data?.config) return snapshot;
+function ensureGameShape(raw) {
+  if (!raw) return null;
+  const title = raw.title || raw.meta?.title || '';
+  const slug = slugify(raw.slug || raw.meta?.slug || title || '');
+  const config = raw.config || raw.data?.config || defaultConfig();
+  return {
+    ...raw,
+    title: title || slug || 'Untitled Game',
+    slug: slug || 'untitled',
+    channel: raw.channel === 'published' ? 'published' : 'draft',
+    appearance: raw.appearance || raw.meta?.appearance || defaultAppearance(),
+    coverUrl: raw.coverUrl || raw.coverImage || '',
+    config,
+    missions: Array.isArray(raw.missions) ? raw.missions : raw.data?.suite || [],
+    devices: Array.isArray(raw.devices) ? raw.devices : raw.data?.devices || [],
+  };
+}
+
+// Apply global geo (lat/lng) to current game config center
+function applyGeoToGame(game, lat, lng) {
+  if (!game) return game;
   const LAT = clampNum(lat);
   const LNG = clampNum(lng);
-  const next = { ...snapshot, data: { ...snapshot.data, config: { ...snapshot.data.config } } };
-  next.data.config.map = { ...(next.data.config.map || {}), centerLat: LAT, centerLng: LNG };
+  const next = { ...game, config: { ...(game.config || {}) } };
+  next.config.map = { ...(next.config?.map || {}), centerLat: LAT, centerLng: LNG };
   return next;
 }
 
@@ -114,12 +131,6 @@ async function safeFetchJSON(url, opts) {
   } catch { return null; }
 }
 
-async function fetchGamesIndexFromServer() {
-  const payload = await safeFetchJSON('/api/games/list');
-  if (payload && payload.ok && Array.isArray(payload.games)) return payload.games;
-  return [];
-}
-
 async function saveDefaultsToServer(anySlug, pubSlug) {
   const payload = await safeFetchJSON('/api/app-settings', {
     method: 'PUT', headers: { 'content-type': 'application/json' },
@@ -127,82 +138,6 @@ async function saveDefaultsToServer(anySlug, pubSlug) {
   });
   // Accept any truthy response; ignore failures silently
   return !!payload;
-}
-
-// ───────────────────────────────────────────────────────────────────────────────
-// Local Index & Snapshot storage
-// ───────────────────────────────────────────────────────────────────────────────
-function readIndex() {
-  const raw = storageGet(LS.INDEX, '[]');
-  const list = safeParse(raw, []);
-  if (!Array.isArray(list)) return [];
-  // de-dupe by slug+channel
-  const map = new Map();
-  for (const g of list) {
-    const key = `${g?.slug}::${g?.channel}`;
-    if (g?.slug && g?.channel && !map.has(key)) map.set(key, g);
-  }
-  return Array.from(map.values());
-}
-
-function writeIndex(list) {
-  storageSet(LS.INDEX, safeStringify(list || []));
-}
-
-function gameKey(slug, channel) {
-  return `${LS.GAME_PREFIX}${normalizeSlug(slug)}:${channel === 'published' ? 'published' : 'draft'}`;
-}
-
-function readSnapshot(slug, channel) {
-  const key = gameKey(slug, channel);
-  const raw = storageGet(key, '');
-  return raw ? safeParse(raw, null) : null;
-}
-
-function writeSnapshot(slug, channel, snapshot) {
-  const key = gameKey(slug, channel);
-  storageSet(key, safeStringify(snapshot));
-}
-
-function deleteSnapshot(slug, channel) {
-  storageRemove(gameKey(slug, channel));
-}
-
-// Ensure at least one default + one sample exist locally
-function seedIfEmpty() {
-  const list = readIndex();
-  if (list.length > 0) return;
-  const defSlug = 'default';
-  const sampleSlug = 'starfield-station-break';
-  const defSnap = makeSnapshot('Default Game', defSlug);
-  const sampleSnap = makeSnapshot('Starfield Station Break', sampleSlug);
-  writeSnapshot(defSlug, 'draft', defSnap);
-  writeSnapshot(sampleSlug, 'draft', sampleSnap);
-  writeIndex([
-    { slug: defSlug, title: 'Default Game', channel: 'draft', published: false, updated_at: nowIso() },
-    { slug: sampleSlug, title: 'Starfield Station Break', channel: 'draft', published: false, updated_at: nowIso() },
-  ]);
-}
-
-// syncIndex: ensure index has an entry for provided (slug, channel)
-function upsertIndexEntry(slug, title, channel) {
-  const list = readIndex();
-  const key = `${normalizeSlug(slug)}::${channel}`;
-  let found = false;
-  const next = list.map((g) => {
-    const k = `${normalizeSlug(g.slug)}::${g.channel}`;
-    if (k === key) { found = true; return { ...g, title, updated_at: nowIso(), published: channel === 'published' }; }
-    return g;
-  });
-  if (!found) next.unshift({ slug: normalizeSlug(slug), title, channel, published: channel === 'published', updated_at: nowIso() });
-  writeIndex(next);
-}
-
-function removeIndexEntriesForSlug(slug) {
-  const list = readIndex();
-  const norm = normalizeSlug(slug);
-  const next = list.filter((g) => normalizeSlug(g.slug) !== norm);
-  writeIndex(next);
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -217,10 +152,10 @@ function Section({ title, children }) {
   );
 }
 
-function FieldRow({ label, children }) {
+function FieldRow({ labelText, children }) {
   return (
     <div style={ST.row}>
-      <div style={ST.label}>{label}</div>
+      <div style={ST.label}>{labelText}</div>
       <div style={ST.value}>{children}</div>
     </div>
   );
@@ -231,9 +166,9 @@ function SavedGamesSelect({ items, value, onChange, loading }) {
     <div>
       <label style={ST.smallLabel}>Saved Games</label>
       <select style={ST.select} value={value} onChange={(e) => onChange?.(e.target.value)}>
-        <option value="">{loading ? 'Loading…' : 'Select a game'}</option>
+        <option value="">{loading ? 'Loading…' : 'Select a draft'}</option>
         {items.map((g) => (
-          <option key={`${g.slug}::${g.channel}`} value={`${g.slug}::${g.channel}`}>
+          <option key={`${g.slug}::${g.channel || 'draft'}`} value={g.slug}>
             {labelForGame(g)}
           </option>
         ))}
@@ -295,7 +230,7 @@ function DefaultsControls({ items }) {
   );
 }
 
-function GeoControls({ geo, onChange, onApplyToSnapshot }) {
+function GeoControls({ geo, onChange, onApplyToGame }) {
   const [lat, setLat] = React.useState(String(geo?.lat ?? ''));
   const [lng, setLng] = React.useState(String(geo?.lng ?? ''));
   const [note, setNote] = React.useState('');
@@ -315,15 +250,15 @@ function GeoControls({ geo, onChange, onApplyToSnapshot }) {
 
   return (
     <div>
-      <FieldRow label="Latitude">
+      <FieldRow labelText="Latitude">
         <input style={ST.input} inputMode="decimal" value={lat} onChange={(e)=>setLat(e.target.value)} />
       </FieldRow>
-      <FieldRow label="Longitude">
+      <FieldRow labelText="Longitude">
         <input style={ST.input} inputMode="decimal" value={lng} onChange={(e)=>setLng(e.target.value)} />
       </FieldRow>
       <div style={ST.rowBtns}>
         <button style={ST.primaryBtn} onClick={saveGeo}>Save Default Geo</button>
-        <button style={ST.secondaryBtn} onClick={()=>onApplyToSnapshot?.(clampNum(lat), clampNum(lng))}>Apply to Current Game</button>
+        <button style={ST.secondaryBtn} onClick={()=>onApplyToGame?.(clampNum(lat), clampNum(lng))}>Apply to Current Game</button>
       </div>
       {note ? <div style={ST.note}>{note}</div> : null}
     </div>
@@ -333,106 +268,155 @@ function GeoControls({ geo, onChange, onApplyToSnapshot }) {
 // ───────────────────────────────────────────────────────────────────────────────
 // Main Page
 // ───────────────────────────────────────────────────────────────────────────────
+
 export default function SettingsGlobalFinalPage() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(true);
-  const [items, setItems] = React.useState([]); // index
+  const [items, setItems] = React.useState([]);
   const [selectVal, setSelectVal] = React.useState('');
-  const [snapshot, setSnapshot] = React.useState(null);
+  const [game, setGame] = React.useState(() => createGameTemplate('', ''));
   const [status, setStatus] = React.useState('');
   const [geo, setGeo] = React.useState(() => safeParse(storageGet(LS.GEO, ''), null));
 
-  // seed + load index
+  const updateRouter = React.useCallback((slug) => {
+    try {
+      const nextQuery = { ...router.query };
+      if (slug) {
+        nextQuery.game = slug;
+      } else {
+        delete nextQuery.game;
+      }
+      router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+    } catch {}
+  }, [router]);
+
   React.useEffect(() => {
     if (!isBrowser()) return;
-    seedIfEmpty();
-    (async () => {
-      setLoading(true);
-      const serverList = await fetchGamesIndexFromServer(); // non-fatal, may be []
-      const localList = readIndex();
-      // merge, prefer local recency
-      const map = new Map();
-      for (const g of [...serverList, ...localList]) {
-        if (!g?.slug) continue;
-        const k = `${normalizeSlug(g.slug)}::${g.channel || 'draft'}`;
-        const prev = map.get(k);
-        if (!prev || (g.updated_at && (!prev.updated_at || g.updated_at > prev.updated_at))) map.set(k, g);
-      }
-      const merged = Array.from(map.values());
-      setItems(merged);
-      setLoading(false);
-    })();
-  }, []);
+    let active = true;
 
-  // when you pick a game from dropdown, load it
+    async function hydrate() {
+      setLoading(true);
+      let drafts = listDrafts();
+      if (drafts.length === 0) {
+        try {
+          await saveDraft(createGameTemplate('Default Game', 'default'), { onGameChange: () => {}, allowPublished: true });
+        } catch {}
+        drafts = listDrafts();
+      }
+      if (!active) return;
+
+      setItems(drafts);
+      const slugFromQuery = typeof router?.query?.game === 'string' ? router.query.game : '';
+      const initialSlug = slugFromQuery || drafts[0]?.slug || '';
+
+      if (initialSlug) {
+        const loaded = loadDraft(initialSlug);
+        if (loaded) {
+          const shaped = ensureGameShape(loaded);
+          setGame(shaped);
+          setSelectVal(shaped.slug);
+          setStatus(`Loaded ${shaped.slug}`);
+        } else {
+          setSelectVal(initialSlug);
+          setStatus('Draft not found locally.');
+        }
+      } else {
+        setGame(createGameTemplate('', ''));
+      }
+      setLoading(false);
+    }
+
+    hydrate();
+    return () => { active = false; };
+  }, [router]);
+
+  const publishedItems = React.useMemo(() => items.filter((g) => g.channel === 'published'), [items]);
+
   async function handleSelect(val) {
     setSelectVal(val);
-    if (!val) return;
-    const [slug, channel = 'draft'] = String(val).split('::');
-    await openGame(slug, channel);
-  }
-
-  async function openGame(slug, channel) {
-    const norm = normalizeSlug(slug);
-    let snap = readSnapshot(norm, channel) || readSnapshot(norm, 'draft');
-    if (!snap) {
-      snap = makeSnapshot(norm, norm);
-      snap.meta.channel = channel === 'published' ? 'published' : 'draft';
-      writeSnapshot(norm, snap.meta.channel, snap);
-      upsertIndexEntry(norm, snap.meta.title, snap.meta.channel);
-      setItems(readIndex());
+    if (!val) {
+      setGame(createGameTemplate('', ''));
+      setStatus('Ready for a new draft.');
+      updateRouter('');
+      return;
     }
-    setSnapshot(snap);
-    setStatus(`Opened ${norm} (${snap.meta.channel})`);
-    // optionally reflect in URL (shallow) to keep state discoverable
+    const record = loadDraft(val);
+    if (!record) {
+      setStatus('Draft not found locally.');
+      return;
+    }
+    const shaped = ensureGameShape(record);
+    setGame(shaped);
+    setStatus(`Loaded ${shaped.slug}`);
+    updateRouter(shaped.slug);
+  }
+
+  async function handleSave() {
     try {
-      const query = { ...router.query, game: norm, channel: snap.meta.channel };
-      router.replace({ pathname: router.pathname, query }, undefined, { shallow: true });
-    } catch {}
+      const saved = await saveDraft(game, {
+        onGameChange: (next) => setGame(ensureGameShape(next)),
+      });
+      const refreshed = listDrafts();
+      setItems(refreshed);
+      setSelectVal(saved.slug);
+      setStatus(`Saved ${saved.slug}`);
+      updateRouter(saved.slug);
+    } catch (err) {
+      setStatus(err?.message || 'Save failed.');
+    }
   }
 
-  function save(channel) {
-    if (!snapshot) return;
-    const norm = normalizeSlug(snapshot.meta?.slug || 'untitled');
-    const title = snapshot.meta?.title || norm;
-    const ch = channel === 'published' ? 'published' : 'draft';
-    const next = { ...snapshot, meta: { ...snapshot.meta, slug: norm, title, channel: ch } };
-    writeSnapshot(norm, ch, next);
-    upsertIndexEntry(norm, title, ch);
-    setItems(readIndex());
-    setSnapshot(next);
-    setStatus(`Saved ${norm} (${ch})`);
+  async function handleDelete() {
+    if (!game?.slug) {
+      setStatus('Select a draft to delete.');
+      return;
+    }
+    try {
+      const slug = game.slug;
+      await deleteDraft(game, {
+        onGameChange: (next) => {
+          if (!next || (!next.title && !next.slug)) {
+            setGame(createGameTemplate('', ''));
+            return;
+          }
+          const shaped = ensureGameShape(next);
+          setGame(shaped);
+        },
+        onAfterDelete: () => {
+          setItems(listDrafts());
+        },
+      });
+      setSelectVal('');
+      setStatus(`Deleted ${slug}`);
+      updateRouter('');
+    } catch (err) {
+      setStatus(err?.message || 'Delete failed.');
+    }
   }
 
-  function deleteCurrent() {
-    if (!snapshot) return;
-    const norm = normalizeSlug(snapshot.meta?.slug || '');
-    if (!norm) return;
-    deleteSnapshot(norm, 'draft');
-    deleteSnapshot(norm, 'published');
-    removeIndexEntriesForSlug(norm);
-    setItems(readIndex());
-    setSnapshot(null);
-    setSelectVal('');
-    setStatus(`Deleted ${norm}`);
+  function onTitleChange(value) {
+    const input = String(value || '').trim();
+    const nextSlug = slugify(input || game.slug || '');
+    setGame((prev) => ({
+      ...prev,
+      title: input || nextSlug || 'Untitled Game',
+      slug: nextSlug || 'untitled',
+    }));
   }
 
-  function onTitleChange(v) {
-    if (!snapshot) return;
-    const t = String(v || '').trim();
-    const s = normalizeSlug(t);
-    const next = { ...snapshot, meta: { ...snapshot.meta, title: t || s, slug: s } };
-    setSnapshot(next);
+  function onSlugChange(value) {
+    const nextSlug = slugify(value);
+    setGame((prev) => ({
+      ...prev,
+      slug: nextSlug || prev.slug || 'untitled',
+    }));
   }
 
   function onApplyGeo(lat, lng) {
-    if (!snapshot) return;
-    const next = applyGeoToSnapshot(snapshot, lat, lng);
-    setSnapshot(next);
-    setStatus('Applied geo to current game');
+    const next = applyGeoToGame(game, lat, lng);
+    setGame(next);
+    setStatus('Applied geo to current draft.');
   }
-
-  const publishedItems = React.useMemo(() => items.filter(g => g.channel === 'published'), [items]);
 
   return (
     <div style={ST.page}>
@@ -441,24 +425,23 @@ export default function SettingsGlobalFinalPage() {
       <Section title="Saved Games">
         <SavedGamesSelect items={items} value={selectVal} onChange={handleSelect} loading={loading} />
         <div style={ST.rowBtns}>
-          <button style={ST.primaryBtn} onClick={()=>save('draft')} disabled={!snapshot}>💾 Save Draft</button>
-          <button style={ST.primaryBtn} onClick={()=>save('published')} disabled={!snapshot}>🚀 Save Published</button>
-          <button style={ST.dangerBtn} onClick={deleteCurrent} disabled={!snapshot}>🗑 Delete Game</button>
+          <button style={ST.primaryBtn} onClick={handleSave} disabled={!game?.title}>💾 Save Draft</button>
+          <button style={ST.dangerBtn} onClick={handleDelete} disabled={!game?.slug}>🗑 Delete Draft</button>
         </div>
       </Section>
 
       <Section title="Game Meta">
-        <FieldRow label="Title">
-          <input style={ST.input} value={snapshot?.meta?.title || ''} onChange={(e)=>onTitleChange(e.target.value)} placeholder="Game title" />
+        <FieldRow labelText="Title">
+          <input style={ST.input} value={game?.title || ''} onChange={(e)=>onTitleChange(e.target.value)} placeholder="Game title" />
         </FieldRow>
-        <FieldRow label="Slug">
-          <input style={{...ST.input, opacity:0.7}} value={snapshot?.meta?.slug || ''} onChange={(e)=>onTitleChange(e.target.value)} />
+        <FieldRow labelText="Slug">
+          <input style={{...ST.input, opacity:0.7}} value={game?.slug || ''} onChange={(e)=>onSlugChange(e.target.value)} />
         </FieldRow>
         <div style={ST.help}>Changing the title updates the slug automatically.</div>
       </Section>
 
       <Section title="Global Location (Geo)">
-        <GeoControls geo={geo} onChange={setGeo} onApplyToSnapshot={onApplyGeo} />
+        <GeoControls geo={geo} onChange={setGeo} onApplyToGame={onApplyGeo} />
       </Section>
 
       <Section title="Default Game Shortcuts">
@@ -475,6 +458,7 @@ export default function SettingsGlobalFinalPage() {
     </div>
   );
 }
+
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Footer w/ environment snapshot (no failures if env missing)

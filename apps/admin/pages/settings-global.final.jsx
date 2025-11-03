@@ -141,7 +141,7 @@ function removeIndexEntriesForSlug(slug) {
 // UI bits
 // ──────────────────────────────────────────────────────────────────────────────
 function Section({ title, children }) { return (<section style={ST.section}>{title ? <h2 style={ST.h2}>{title}</h2> : null}{children}</section>); }
-function FieldRow({ label, children }) { return (<div style={ST.row}><div style={ST.label}>{label}</div><div style={ST.value}>{children}</div></div>); }
+function FieldRow({ labelText, children }) { return (<div style={ST.row}><div style={ST.label}>{labelText}</div><div style={ST.value}>{children}</div></div>); }
 function SavedGamesSelect({ items, value, onChange, loading }) {
   return (
     <div>
@@ -197,8 +197,8 @@ function GeoControls({ geo, onChange, onApplyToSnapshot }) {
   function saveGeo() { const obj = { lat: clampNum(lat), lng: clampNum(lng) }; storageSet(LS.GEO, safeStringify(obj)); onChange?.(obj); setNote('Saved default geo.'); setTimeout(()=>setNote(''), 1200); }
   return (
     <div>
-      <FieldRow label="Latitude"><input style={ST.input} inputMode="decimal" value={lat} onChange={(e)=>setLat(e.target.value)} /></FieldRow>
-      <FieldRow label="Longitude"><input style={ST.input} inputMode="decimal" value={lng} onChange={(e)=>setLng(e.target.value)} /></FieldRow>
+      <FieldRow labelText="Latitude"><input style={ST.input} inputMode="decimal" value={lat} onChange={(e)=>setLat(e.target.value)} /></FieldRow>
+      <FieldRow labelText="Longitude"><input style={ST.input} inputMode="decimal" value={lng} onChange={(e)=>setLng(e.target.value)} /></FieldRow>
       <div style={ST.rowBtns}>
         <button style={ST.primaryBtn} onClick={saveGeo}>Save Default Geo</button>
         <button style={ST.secondaryBtn} onClick={()=>onApplyToSnapshot?.(clampNum(lat), clampNum(lng))}>Apply to Current Game</button>
@@ -483,8 +483,8 @@ export default function SettingsGlobalFinalPage() {
       </Section>
 
       <Section title="Game Meta">
-        <FieldRow label="Title"><input style={ST.input} value={snapshot?.meta?.title || ''} onChange={(e)=>onTitleChange(e.target.value)} placeholder="Game title" /></FieldRow>
-        <FieldRow label="Slug"><input style={{...ST.input, opacity:0.7}} value={snapshot?.meta?.slug || ''} onChange={(e)=>onTitleChange(e.target.value)} /></FieldRow>
+        <FieldRow labelText="Title"><input style={ST.input} value={snapshot?.meta?.title || ''} onChange={(e)=>onTitleChange(e.target.value)} placeholder="Game title" /></FieldRow>
+        <FieldRow labelText="Slug"><input style={{...ST.input, opacity:0.7}} value={snapshot?.meta?.slug || ''} onChange={(e)=>onTitleChange(e.target.value)} /></FieldRow>
         <div style={ST.help}>Changing the title updates the slug automatically.</div>
       </Section>
 
