@@ -2,6 +2,14 @@
 
 ---
 
+**Timestamp:** 2025-11-08T15:45:00Z
+
+**You:** CODEx needs metadata edits to normalize into every saved game—add a helper that keeps description, tags, category, difficulty, duration, and center defaults, expose an updater so the UI can merge patches, wire a metadata editor next to the title/cover fields, and confirm ChatGPT-5 thinking signs off.
+
+**GPT:** Confirmed with ChatGPT-5 thinking, introduced a shared normalizer that enforces payload metadata defaults (description/tags/category/difficulty/duration/center), added an `updateMetadata` merge helper plus metadata tag aggregation, rendered a debounced Metadata Editor beside the existing title and cover controls so changes auto-save, refreshed the tags footer, and retested the admin store writes so localStorage reflects the metadata updates.
+
+---
+
 **Timestamp:** 2025-11-07T12:10:00Z
 
 **You:** CODEx needs the admin to write saved-game metadata into `public/games/index.json` whenever we save and to scrub it when games are deleted—wire the GitHub helper into both flows and make sure ChatGPT-5 thinking signs off.

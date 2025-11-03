@@ -7,6 +7,23 @@
 const V2_KEY = 'esxape:games:v2';
 const V1_KEY = 'esxape:drafts:v1';
 
+const DEFAULT_METADATA = Object.freeze({
+  description: '',
+  tags: [],
+  category: '',
+  difficulty: '',
+  durationMins: null,
+  center: { lat: null, lng: null },
+});
+
+const DEFAULT_PAYLOAD = Object.freeze({
+  settings: {},
+  missions: [],
+  devices: [],
+  powerups: [],
+  media: [],
+});
+
 function nowIso() {
   try {
     return new Date().toISOString();
@@ -62,6 +79,92 @@ export function ensureUniqueSlug(wanted) {
 }
 
 // ---------- Core store ----------
+function isFiniteNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num);
+}
+
+function normalizeTags(tags) {
+  if (!tags) return [];
+  const set = new Set();
+  if (Array.isArray(tags)) {
+    for (const tag of tags) {
+      if (typeof tag !== 'string') continue;
+      const next = tag.trim();
+      if (next) set.add(next);
+    }
+  } else if (typeof tags === 'string') {
+    for (const chunk of tags.split(',')) {
+      const next = chunk.trim();
+      if (next) set.add(next);
+    }
+  }
+  return Array.from(set);
+}
+
+function stripUndefined(obj) {
+  if (!obj || typeof obj !== 'object') return {};
+  const next = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) next[key] = value;
+  }
+  return next;
+}
+
+function normalizeMetadata(meta) {
+  const base = { ...DEFAULT_METADATA };
+  const source = meta && typeof meta === 'object' ? meta : {};
+  const centerSource = source.center && typeof source.center === 'object' ? source.center : {};
+  const next = {
+    description: typeof source.description === 'string' ? source.description : base.description,
+    tags: normalizeTags(source.tags),
+    category: typeof source.category === 'string' ? source.category : base.category,
+    difficulty: typeof source.difficulty === 'string' ? source.difficulty : base.difficulty,
+    durationMins: isFiniteNumber(source.durationMins) ? Number(source.durationMins) : base.durationMins,
+    center: {
+      lat: isFiniteNumber(centerSource.lat) ? Number(centerSource.lat) : base.center.lat,
+      lng: isFiniteNumber(centerSource.lng) ? Number(centerSource.lng) : base.center.lng,
+    },
+  };
+  return next;
+}
+
+function mergeMetadata(existing, patch) {
+  const safeExisting = normalizeMetadata(existing);
+  const source = patch && typeof patch === 'object' ? patch : {};
+  const sanitizedSource = stripUndefined(source);
+  const centerPatch = stripUndefined(source.center);
+  delete sanitizedSource.center;
+  const next = {
+    ...safeExisting,
+    ...sanitizedSource,
+    center: {
+      ...safeExisting.center,
+      ...centerPatch,
+    },
+  };
+  return normalizeMetadata(next);
+}
+
+function normalizeGame(game) {
+  if (!game || typeof game !== 'object') return null;
+  const payloadSource = game.payload && typeof game.payload === 'object' ? game.payload : {};
+  const payload = { ...DEFAULT_PAYLOAD, ...payloadSource };
+  const normalized = {
+    id: game.id || `draft-${safeRandomId()}`,
+    title: game.title || 'Untitled',
+    slug: game.slug || slugify(game.title || 'Untitled') || 'untitled',
+    channel: game.channel === 'published' ? 'published' : 'draft',
+    payload: {
+      ...payload,
+      meta: normalizeMetadata(payloadSource.meta),
+    },
+    coverImage: game.coverImage ?? null,
+    updatedAt: game.updatedAt || nowIso(),
+  };
+  return normalized;
+}
+
 function normalizeV2(obj) {
   const games = Array.isArray(obj?.games) ? obj.games : [];
   const bySlug = new Map();
@@ -69,11 +172,18 @@ function normalizeV2(obj) {
     if (!game?.slug) continue;
     const prev = bySlug.get(game.slug);
     if (!prev || String(prev.updatedAt || '') < String(game.updatedAt || '')) {
-      bySlug.set(game.slug, game);
+      const normalized = normalizeGame(game);
+      if (normalized) bySlug.set(game.slug, normalized);
     }
   }
   const arr = Array.from(bySlug.values());
-  const tags = arr.map((g) => g.slug);
+  const tagSet = new Set();
+  for (const entry of arr) {
+    for (const tag of entry?.payload?.meta?.tags || []) {
+      if (typeof tag === 'string' && tag.trim()) tagSet.add(tag.trim());
+    }
+  }
+  const tags = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
   return { version: 2, games: arr, tags, updatedAt: nowIso() };
 }
 
@@ -105,14 +215,10 @@ function migrateV1toV2() {
       title,
       slug: allocateSlug(wantedSlug),
       channel: draft.channel === 'published' ? 'published' : 'draft',
-      payload:
-        draft.payload || {
-          settings: {},
-          missions: [],
-          devices: [],
-          powerups: [],
-          media: [],
-        },
+      payload: {
+        ...DEFAULT_PAYLOAD,
+        ...(draft.payload && typeof draft.payload === 'object' ? draft.payload : {}),
+      },
       coverImage: draft.coverImage || null,
       updatedAt: draft.updatedAt || nowIso(),
     };
@@ -139,10 +245,12 @@ function setStore(next) {
 }
 
 function saveGameRecord(rec) {
+  const normalized = normalizeGame(rec);
+  if (!normalized) return getStore();
   const store = getStore();
-  const idx = store.games.findIndex((g) => g.slug === rec.slug);
-  if (idx >= 0) store.games[idx] = rec;
-  else store.games.push(rec);
+  const idx = store.games.findIndex((g) => g.slug === normalized.slug);
+  if (idx >= 0) store.games[idx] = normalized;
+  else store.games.push(normalized);
   return setStore(store);
 }
 
@@ -176,24 +284,42 @@ function safeRandomId() {
 }
 
 export function upsertGame(partial) {
-  const rec = {
-    id: partial.id || `draft-${safeRandomId()}`,
-    title: partial.title || 'Untitled',
-    slug: partial.slug || ensureUniqueSlug(slugify(partial.title) || 'untitled'),
-    channel: partial.channel === 'published' ? 'published' : 'draft',
-    payload:
-      partial.payload || {
-        settings: {},
-        missions: [],
-        devices: [],
-        powerups: [],
-        media: [],
-      },
-    coverImage: partial.coverImage ?? null,
+  const slug =
+    partial.slug || ensureUniqueSlug(slugify(partial.title) || 'untitled');
+  const existing = getGame(slug);
+  const rec = normalizeGame({
+    ...existing,
+    ...partial,
+    id: partial.id || existing?.id || `draft-${safeRandomId()}`,
+    slug,
+    title: partial.title ?? existing?.title ?? 'Untitled',
+    channel: partial.channel ?? existing?.channel ?? 'draft',
     updatedAt: nowIso(),
-  };
+  });
+  if (!rec) return existing || null;
   const next = saveGameRecord(rec);
   return next.games.find((g) => g.slug === rec.slug) || rec;
+}
+
+export function updateMetadata(slug, patch) {
+  if (!slug) return null;
+  const store = getStore();
+  const idx = store.games.findIndex((g) => g.slug === slug);
+  if (idx < 0) return null;
+  const existing = store.games[idx];
+  const nextMeta = mergeMetadata(existing?.payload?.meta, patch);
+  const rec = normalizeGame({
+    ...existing,
+    payload: {
+      ...existing.payload,
+      meta: nextMeta,
+    },
+    updatedAt: nowIso(),
+  });
+  if (!rec) return existing || null;
+  store.games[idx] = rec;
+  const nextStore = setStore(store);
+  return nextStore.games.find((g) => g.slug === slug) || rec;
 }
 
 export function deleteGame(slug) {
@@ -206,20 +332,14 @@ export function deleteGame(slug) {
 export function ensureDefaultGame() {
   const store = getStore();
   if (!store.games.some((g) => g.slug === 'default')) {
-    setStore({
-      ...store,
-      games: [
-        ...store.games,
-        {
-          id: 'draft-default',
-          title: 'Default',
-          slug: 'default',
-          channel: 'draft',
-          payload: { settings: {}, missions: [], devices: [], powerups: [], media: [] },
-          coverImage: null,
-          updatedAt: nowIso(),
-        },
-      ],
+    saveGameRecord({
+      id: 'draft-default',
+      title: 'Default',
+      slug: 'default',
+      channel: 'draft',
+      payload: { ...DEFAULT_PAYLOAD, meta: DEFAULT_METADATA },
+      coverImage: null,
+      updatedAt: nowIso(),
     });
   }
   return getGame('default');

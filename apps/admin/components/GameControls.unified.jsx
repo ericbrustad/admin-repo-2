@@ -12,6 +12,7 @@ import {
   setCoverFromFile,
   clearCover,
 } from '../lib/store';
+import MetadataEditor from './MetadataEditor';
 
 const noop = () => {};
 
@@ -103,6 +104,17 @@ export default function GameControlsUnified({
     setFlash(msg);
     setTimeout(() => setFlash(''), timeout);
   }, []);
+
+  const onMetadataSaved = useCallback(
+    (updated) => {
+      const nextGames = refresh();
+      if (!updated) return;
+      const match =
+        nextGames.find((g) => g.slug === updated.slug) || getGame(updated.slug) || updated;
+      setCurrent(match);
+    },
+    [refresh],
+  );
 
   const onNew = useCallback(() => {
     const slug = ensureUniqueSlug(slugify('New Game') || 'untitled');
@@ -243,45 +255,49 @@ export default function GameControlsUnified({
       </div>
 
       {current && (
-        <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <div className="flex flex-col">
-            <label className="text-sm font-medium">Title</label>
-            <input
-              type="text"
-              value={current.title}
-              onChange={onTitleChange}
-              className="border rounded px-2 py-1"
-              placeholder="Game title"
-            />
-            <small className="opacity-70 mt-1">
-              Tag: {current.slug}
-              {current.slug === 'default' ? ' (Default)' : ''}
-            </small>
+        <>
+          <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium">Title</label>
+              <input
+                type="text"
+                value={current.title}
+                onChange={onTitleChange}
+                className="border rounded px-2 py-1"
+                placeholder="Game title"
+              />
+              <small className="opacity-70 mt-1">
+                Tag: {current.slug}
+                {current.slug === 'default' ? ' (Default)' : ''}
+              </small>
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-sm font-medium">Cover Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onCoverChange}
+                className="border rounded px-2 py-1"
+                disabled={busy}
+              />
+              {current.coverImage?.dataUrl && (
+                <>
+                  <img
+                    src={current.coverImage.dataUrl}
+                    alt="Cover"
+                    style={{ marginTop: 8, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
+                  />
+                  <button onClick={onClearCover} className="mt-2 px-3 py-1 border rounded">
+                    Remove Cover
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-col">
-            <label className="text-sm font-medium">Cover Image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={onCoverChange}
-              className="border rounded px-2 py-1"
-              disabled={busy}
-            />
-            {current.coverImage?.dataUrl && (
-              <>
-                <img
-                  src={current.coverImage.dataUrl}
-                  alt="Cover"
-                  style={{ marginTop: 8, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
-                />
-                <button onClick={onClearCover} className="mt-2 px-3 py-1 border rounded">
-                  Remove Cover
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+          <MetadataEditor key={current.slug} game={current} onSaved={onMetadataSaved} />
+        </>
       )}
 
       <div className="flex items-center gap-2">
