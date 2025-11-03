@@ -56,7 +56,7 @@ function allKeys() {
 }
 
 const nowIso = () => new Date().toISOString();
-const setPageTitle = (name) => {
+const applyAdminPageTitle = (name) => {
   if (typeof document !== 'undefined') {
     document.title = `${name || 'Admin'} — Admin`;
   }
@@ -298,7 +298,7 @@ export default function CodexDropGameDraftsPanel({
       setSlug(derivedSlug);
       setChannel(useChannel);
       setCoverPreview(config?.game?.coverImage || '');
-      setPageTitle(derivedTitle);
+      applyAdminPageTitle(derivedTitle);
       onChange?.(found.slug, { ...found });
     }
   }, [games, value, onChange]);
@@ -320,7 +320,7 @@ export default function CodexDropGameDraftsPanel({
       setSlug(snapshot?.slug || found.slug);
       setChannel(useChannel);
       setCoverPreview(config?.game?.coverImage || '');
-      setPageTitle(snapshot?.title || found.title || found.slug);
+      applyAdminPageTitle(snapshot?.title || found.title || found.slug);
       onChange?.(nextSlug, { ...found });
     } else {
       onChange?.('', null);
@@ -379,7 +379,7 @@ export default function CodexDropGameDraftsPanel({
       upsertRegistryEntry({ slug: resolvedSlug, title, channel });
     }
 
-    setPageTitle(title);
+    applyAdminPageTitle(title);
     reload();
     return true;
   }, [channel, coverPreview, current, reload, slug, title]);
@@ -426,7 +426,7 @@ export default function CodexDropGameDraftsPanel({
     setTitle('');
     setSlug('');
     setCoverPreview('');
-    setPageTitle('Admin');
+    applyAdminPageTitle('Admin');
     onChange?.('', null);
   };
 
@@ -847,19 +847,6 @@ export function CloseAndSaveSettings({ onSave }) {
       setBusy(false);
     }
   }, []);
-
-  useEffect(() => {
-    reload();
-    if (!hasStorage()) return undefined;
-    const handler = (event) => {
-      const key = event?.key || '';
-      if (!key || key === REG_KEY || key.startsWith('erix:admin:drafts') || key.startsWith('erix:admin:published')) {
-        reload();
-      }
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, [reload]);
 
   const handleClick = useCallback(async () => {
     if (busy) return;

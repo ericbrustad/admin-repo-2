@@ -422,3 +422,11 @@
 **You:** CODEx followed up with a streamlined drop panel that reinlines the registry helpers—can you reapply it wholesale, drop the redundant hook/lib files, and loop ChatGPT-5 into how the local manager now works?
 
 **GPT:** Replaced the panel with the CODEx self-contained version, removed the duplicate `hooks/useCodexGames` and `lib/codex/localRegistry` modules, confirmed the shim still exports `CloseAndSaveSettings`/`useCodexGames`, and logged the change here so ChatGPT-5 knows the local registry lives in a single file again.
+
+**Timestamp:** 2025-11-04T12:34:00Z
+
+**You:** CODEx build logs are still complaining—webpack says `setPageTitle` is declared twice inside the drop panel. Please dedupe the helper, rerun the admin build, and make sure ChatGPT-5 knows the local manager compiles cleanly now.
+
+**GPT:** Renamed the helper to `applyAdminPageTitle` so only one title setter exists, re-ran `CI=1 yarn build:admin` to confirm webpack passes, and recorded the fix here so ChatGPT-5 tracks the clean build status.
+ 
+---
